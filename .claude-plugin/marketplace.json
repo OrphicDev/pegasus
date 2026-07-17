@@ -1,0 +1,16 @@
+{
+  "name": "orphic",
+  "owner": { "name": "Orphic Agency", "url": "https://orphic-agency.com" },
+  "metadata": {
+    "description": "Marketplace interne d'Orphic Agency pour Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "pegasus",
+      "source": "./pegasus",
+      "description": "Gérer les sites WordPress des clients Orphic depuis Claude (contenus, thèmes, plugins, SEO, médias, multilingue). Sans FTP.",
+      "version": "0.2.0",
+      "author": { "name": "Orphic Agency" }
+    }
+  ]
+}

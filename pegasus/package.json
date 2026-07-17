@@ -1,0 +1,7 @@
+{
+  "name": "pegasus-mcp",
+  "version": "0.2.0",
+  "description": "Serveur MCP Pegasus — pont entre Claude et l'API des sites WordPress d'Orphic Agency. Zéro dépendance.",
+  "type": "module",
+  "private": true
+}

@@ -1,0 +1,24 @@
+# ————— SECRETS : ne JAMAIS committer —————
+# Clé privée de déchiffrement, clé service Supabase, mots de passe en clair, clé d'équipe
+**/pegasus-private.pem
+**/pegasus.config.json
+**/clients.json
+**/*team-key*
+**/*team_key*
+.env
+*.env
+
+# ————— Workspace local de dev (reste sur le Mac, hors dépôt) —————
+# Contient les secrets ci-dessus + les helpers terminal + l'ancienne registration MCP.
+/mcp-server/
+/wordpress-plugin/
+
+# ————— Divers —————
+Logo/
+**/*.ai
+**/node_modules/
+.DS_Store
+**/.DS_Store
+
+# NB : le zip du plugin WP (pegasus/wordpress-plugin/pegasus.zip) EST versionné
+# volontairement (distribution) — il ne contient que des clés publiques.

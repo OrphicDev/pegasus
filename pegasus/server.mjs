@@ -1,0 +1,385 @@
+#!/usr/bin/env node
+/**
+ * Pegasus MCP — pont entre Claude et l'API Pegasus des sites WordPress d'Orphic Agency.
+ *
+ * Les identifiants (une Application Password par site) vivent dans clients.json,
+ * fichier local jamais versionné. Claude ne voit jamais les mots de passe :
+ * il nomme un client ("robuchon"), le serveur va chercher les identifiants et
+ * signe la requête lui-même.
+ */
+import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { privateDecrypt, constants } from "node:crypto";
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+
+/* Clé d'équipe (plugin) : base64 d'un JSON {supabase_url, supabase_service_key, private_key}.
+   Fournie par Claude Code via PEGASUS_TEAM_KEY (userConfig du plugin), jamais dans le dépôt.
+   Repli : fichiers locaux (pegasus.config.json + pegasus-private.pem) pour le poste de dev historique. */
+let _team;
+function loadTeamKey() {
+  if (_team !== undefined) return _team;
+  const tk = process.env.PEGASUS_TEAM_KEY;
+  if (!tk) return (_team = null);
+  try { _team = JSON.parse(Buffer.from(tk.trim(), "base64").toString("utf8")); }
+  catch { _team = null; }
+  return _team;
+}
+function loadConfig() {
+  const t = loadTeamKey();
+  if (t && t.supabase_url && t.supabase_service_key) {
+    return { supabase_url: t.supabase_url, supabase_service_key: t.supabase_service_key, supabase_anon_key: t.supabase_anon_key };
+  }
+  try { return JSON.parse(readFileSync(join(__dir, "pegasus.config.json"), "utf8")); }
+  catch { return {}; }
+}
+function loadPrivateKey() {
+  const t = loadTeamKey();
+  if (t && t.private_key) return t.private_key;
+  try { return readFileSync(join(__dir, "pegasus-private.pem"), "utf8"); }
+  catch { return null; }
+}
+
+/* ————— Sites depuis Supabase (déchiffrés) + clients.json local en secours ————— */
+let _cache = { at: 0, clients: {} };
+async function loadClientsFromSupabase() {
+  const cfg = loadConfig();
+  const priv = loadPrivateKey();
+  if (!cfg.supabase_url || !cfg.supabase_service_key || !priv) return {};
+  const url = cfg.supabase_url.replace(/\/$/, "");
+  const res = await fetch(`${url}/rest/v1/sites?select=*&order=id.desc`, {
+    headers: { apikey: cfg.supabase_service_key, Authorization: `Bearer ${cfg.supabase_service_key}` },
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}`);
+  const rows = await res.json();
+  const clients = {};
+  for (const row of rows) {
+    const host = new URL(row.site_url).hostname.replace(/^www\./, "");
+    const key = host.split(".")[0].toLowerCase();
+    if (clients[key]) continue; // déjà la version la plus récente (tri id desc)
+    let pass;
+    try {
+      pass = privateDecrypt(
+        { key: priv, padding: constants.RSA_PKCS1_OAEP_PADDING },
+        Buffer.from(row.app_password_enc, "base64")
+      ).toString("utf8");
+    } catch { continue; }
+    clients[key] = { label: row.label || host, base_url: row.site_url, username: row.username, app_password: pass };
+  }
+  return clients;
+}
+
+async function loadClients() {
+  let local = {};
+  try { local = JSON.parse(readFileSync(join(__dir, "clients.json"), "utf8")).clients || {}; } catch {}
+  if (Date.now() - _cache.at < 30000) return { ...local, ..._cache.clients };
+  try {
+    const remote = await loadClientsFromSupabase();
+    _cache = { at: Date.now(), clients: remote };
+    return { ...local, ...remote };
+  } catch {
+    return { ...local, ..._cache.clients };
+  }
+}
+
+async function clientAuth(key) {
+  const clients = await loadClients();
+  const c = clients[key];
+  if (!c) {
+    const dispo = Object.keys(clients).join(", ") || "aucun";
+    throw new Error(`Client inconnu : "${key}". Clients configurés : ${dispo}.`);
+  }
+  const basic = Buffer.from(`${c.username}:${c.app_password.replace(/\s+/g, "")}`).toString("base64");
+  return { base: c.base_url.replace(/\/$/, ""), basic, label: c.label };
+}
+
+/* URL via ?rest_route= : fonctionne quels que soient les permaliens du site */
+function restUrl(base, path) {
+  const [p, qs] = path.split("?");
+  return `${base}/?rest_route=/pegasus/v1${p}` + (qs ? `&${qs}` : "");
+}
+
+/* ————— Appel de l'API Pegasus d'un site ————— */
+async function pegasus(key, method, path, body) {
+  const { base, basic } = await clientAuth(key);
+  const res = await fetch(restUrl(base, path), {
+    method,
+    headers: {
+      "Authorization": `Basic ${basic}`,   // en-tête standard (hôtes qui le laissent passer)
+      "X-Pegasus-Auth": basic,             // en-tête de secours (hôtes qui filtrent Authorization)
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 500) }; }
+  if (!res.ok) {
+    throw new Error(`Pegasus ${res.status} : ${data?.message || data?.code || text.slice(0, 200)}`);
+  }
+  return data;
+}
+
+const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
+const ko = (e) => ({ content: [{ type: "text", text: `Erreur : ${e.message}` }], isError: true });
+
+/* ————— Définition des outils MCP ————— */
+const TOOLS = [
+  {
+    name: "pegasus_list_clients",
+    description: "Liste les sites WordPress configurés dans clients.json (labels et clés).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "pegasus_health",
+    description: "Vérifie la connexion à un site et renvoie ses infos (WP, PHP, thème, utilisateur).",
+    inputSchema: { type: "object", properties: { client: { type: "string" } }, required: ["client"] },
+  },
+  {
+    name: "pegasus_inspect",
+    description: "Structure exacte d'un site : thème, plugins (actifs/inactifs + versions), constructeur de page (Elementor ?), permaliens, compteurs de contenus.",
+    inputSchema: { type: "object", properties: { client: { type: "string" } }, required: ["client"] },
+  },
+  {
+    name: "pegasus_diagnostic",
+    description: "Diagnostic complet d'un site : thème actif (+ enfant/parent), tous les thèmes et plugins installés, constructeur de page, multilingue, pages existantes (collisions de slugs), verrous serveur (DISALLOW_FILE_MODS/EDIT), et ce que Pegasus peut toucher ou pas.",
+    inputSchema: { type: "object", properties: { client: { type: "string" } }, required: ["client"] },
+  },
+  {
+    name: "pegasus_list_themes",
+    description: "Liste les thèmes installés sur un site et indique lequel est actif.",
+    inputSchema: { type: "object", properties: { client: { type: "string" } }, required: ["client"] },
+  },
+  {
+    name: "pegasus_install_theme",
+    description: "Installe (ou met à jour) un thème sur un site depuis un fichier .zip local du Mac, via l'installeur natif de WordPress. N'active PAS le thème — utiliser pegasus_activate_theme ensuite.",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, zip_path: { type: "string", description: "Chemin absolu du .zip sur le Mac" } },
+      required: ["client", "zip_path"],
+    },
+  },
+  {
+    name: "pegasus_activate_theme",
+    description: "Active un thème déjà installé (par son stylesheet, ex: 'emotionsarts'). L'ancien thème reste installé comme filet de secours.",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, stylesheet: { type: "string" } },
+      required: ["client", "stylesheet"],
+    },
+  },
+  {
+    name: "pegasus_seo_audit",
+    description: "Audit SEO d'un site : lit le HTML rendu de chaque page (title, meta description, H1, canonical, Open Graph, images sans alt, langue), détecte le plugin SEO, le sitemap et robots.txt, et résume les problèmes. Paramètre limit optionnel (défaut 12).",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, limit: { type: "number" } },
+      required: ["client"],
+    },
+  },
+  {
+    name: "pegasus_install_plugin",
+    description: "Installe un plugin sur un site : soit depuis le dépôt WordPress.org par 'slug' (ex 'polylang' pour ajouter le multilingue), soit depuis un .zip local (nos plugins de fonctionnalité). N'active pas — utiliser pegasus_activate_plugin ensuite.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        client: { type: "string" },
+        slug: { type: "string", description: "slug WordPress.org, ex 'polylang'" },
+        zip_path: { type: "string", description: "chemin d'un .zip local (alternatif au slug)" },
+      },
+      required: ["client"],
+    },
+  },
+  {
+    name: "pegasus_activate_plugin",
+    description: "Active un plugin déjà installé, par son fichier (ex 'polylang/polylang.php').",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, plugin: { type: "string" } },
+      required: ["client", "plugin"],
+    },
+  },
+  {
+    name: "pegasus_upload_media",
+    description: "Ajoute un média (photo/vidéo) à la bibliothèque d'un site : soit un fichier local (file_path, encodé base64, ≤ 64 Mo), soit depuis une URL (source_url, idéal pour les grosses vidéos). alt et title optionnels. Renvoie l'ID et l'URL du média.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        client: { type: "string" },
+        file_path: { type: "string", description: "chemin d'un fichier local sur le Mac" },
+        source_url: { type: "string", description: "URL d'un média à importer (alternatif)" },
+        alt: { type: "string" },
+        title: { type: "string" },
+      },
+      required: ["client"],
+    },
+  },
+  {
+    name: "pegasus_seo_set",
+    description: "Applique un title SEO et/ou une meta description à une page (post_id). Écrit dans le plugin SEO actif (Yoast/Rank Math) ou, à défaut, active la couche SEO de secours de Pegasus.",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, post_id: { type: "number" }, seo_title: { type: "string" }, seo_description: { type: "string" } },
+      required: ["client", "post_id"],
+    },
+  },
+  {
+    name: "pegasus_seo_site",
+    description: "Règle des paramètres SEO au niveau du site : locale (ex 'fr_FR', télécharge le pack de langue) et/ou tagline (slogan).",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, locale: { type: "string" }, tagline: { type: "string" } },
+      required: ["client"],
+    },
+  },
+  {
+    name: "pegasus_list_content",
+    description: "Liste les contenus d'un site (pages par défaut). Indique lesquels sont en Elementor.",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, type: { type: "string", description: "post type, défaut 'page'" } },
+      required: ["client"],
+    },
+  },
+  {
+    name: "pegasus_get_content",
+    description: "Lit un contenu précis par ID, avec son contenu et son JSON Elementor brut (_elementor_data) s'il existe.",
+    inputSchema: {
+      type: "object",
+      properties: { client: { type: "string" }, id: { type: "number" } },
+      required: ["client", "id"],
+    },
+  },
+  {
+    name: "pegasus_update_content",
+    description: "Modifie un contenu : titre, contenu, statut (publish/draft/private) et/ou JSON Elementor (elementor_data, validé avant écriture). Ne fournir que les champs à changer.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        client: { type: "string" },
+        id: { type: "number" },
+        title: { type: "string" },
+        content: { type: "string" },
+        status: { type: "string" },
+        elementor_data: { type: "string", description: "JSON Elementor complet (chaîne)" },
+      },
+      required: ["client", "id"],
+    },
+  },
+];
+
+async function callTool(name, a = {}) {
+  try {
+    switch (name) {
+      case "pegasus_list_clients": {
+        const c = await loadClients();
+        return ok(Object.entries(c).map(([key, v]) => ({ key, label: v.label, base_url: v.base_url })));
+      }
+      case "pegasus_health":
+        return ok(await pegasus(a.client, "GET", "/health"));
+      case "pegasus_inspect":
+        return ok(await pegasus(a.client, "GET", "/inspect"));
+      case "pegasus_diagnostic":
+        return ok(await pegasus(a.client, "GET", "/diagnostic"));
+      case "pegasus_list_themes":
+        return ok(await pegasus(a.client, "GET", "/themes"));
+      case "pegasus_install_theme": {
+        const zip = await readFile(a.zip_path);
+        return ok(await pegasus(a.client, "POST", "/theme/install", { zip_b64: zip.toString("base64") }));
+      }
+      case "pegasus_activate_theme":
+        return ok(await pegasus(a.client, "POST", "/theme/activate", { stylesheet: a.stylesheet }));
+      case "pegasus_seo_audit":
+        return ok(await pegasus(a.client, "GET", `/seo-audit${a.limit ? `?limit=${a.limit}` : ""}`));
+      case "pegasus_install_plugin": {
+        const body = {};
+        if (a.slug) body.slug = a.slug;
+        else if (a.zip_path) body.zip_b64 = (await readFile(a.zip_path)).toString("base64");
+        else throw new Error("Fournir slug ou zip_path.");
+        return ok(await pegasus(a.client, "POST", "/plugin/install", body));
+      }
+      case "pegasus_activate_plugin":
+        return ok(await pegasus(a.client, "POST", "/plugin/activate", { plugin: a.plugin }));
+      case "pegasus_upload_media": {
+        const body = { alt: a.alt, title: a.title };
+        if (a.file_path) {
+          body.file_b64 = (await readFile(a.file_path)).toString("base64");
+          body.filename = a.file_path.split("/").pop();
+        } else if (a.source_url) {
+          body.source_url = a.source_url;
+        } else throw new Error("Fournir file_path ou source_url.");
+        return ok(await pegasus(a.client, "POST", "/media/upload", body));
+      }
+      case "pegasus_seo_set":
+        return ok(await pegasus(a.client, "POST", "/seo/set", { post_id: a.post_id, seo_title: a.seo_title, seo_description: a.seo_description }));
+      case "pegasus_seo_site":
+        return ok(await pegasus(a.client, "POST", "/seo/site", { locale: a.locale, tagline: a.tagline }));
+      case "pegasus_list_content":
+        return ok(await pegasus(a.client, "GET", `/content${a.type ? `?type=${encodeURIComponent(a.type)}` : ""}`));
+      case "pegasus_get_content":
+        return ok(await pegasus(a.client, "GET", `/content/${a.id}`));
+      case "pegasus_update_content": {
+        const body = {};
+        for (const k of ["title", "content", "status", "elementor_data"]) if (a[k] !== undefined) body[k] = a[k];
+        return ok(await pegasus(a.client, "POST", `/content/${a.id}`, body));
+      }
+      default:
+        return ko(new Error(`Outil inconnu : ${name}`));
+    }
+  } catch (e) {
+    return ko(e);
+  }
+}
+
+/* ————— Transport MCP stdio (JSON-RPC 2.0, sans aucune dépendance) —————
+   Spec MCP stdio : messages JSON délimités par des nouvelles lignes. */
+const PROTO = "2024-11-05";
+const send = (msg) => process.stdout.write(JSON.stringify(msg) + "\n");
+const reply = (id, result) => send({ jsonrpc: "2.0", id, result });
+const replyErr = (id, code, message) => send({ jsonrpc: "2.0", id, error: { code, message } });
+
+async function handle(msg) {
+  const { id, method, params } = msg;
+  switch (method) {
+    case "initialize":
+      return reply(id, {
+        protocolVersion: (params && params.protocolVersion) || PROTO,
+        capabilities: { tools: {} },
+        serverInfo: { name: "pegasus", version: "0.2.0" },
+      });
+    case "notifications/initialized":
+    case "notifications/cancelled":
+      return; // notifications : pas de réponse
+    case "ping":
+      return reply(id, {});
+    case "tools/list":
+      return reply(id, { tools: TOOLS });
+    case "tools/call": {
+      const res = await callTool(params && params.name, (params && params.arguments) || {});
+      return reply(id, res);
+    }
+    default:
+      if (id !== undefined && id !== null) replyErr(id, -32601, `Méthode inconnue : ${method}`);
+  }
+}
+
+let buf = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  buf += chunk;
+  let nl;
+  while ((nl = buf.indexOf("\n")) >= 0) {
+    const line = buf.slice(0, nl).trim();
+    buf = buf.slice(nl + 1);
+    if (!line) continue;
+    let msg;
+    try { msg = JSON.parse(line); } catch { continue; }
+    Promise.resolve(handle(msg)).catch((e) => {
+      if (msg && msg.id != null) replyErr(msg.id, -32603, String((e && e.message) || e));
+    });
+  }
+});
+process.stdin.on("end", () => process.exit(0));
+console.error("Pegasus MCP prêt (sans dépendance).");
