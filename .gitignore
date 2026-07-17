@@ -3,8 +3,10 @@
 **/pegasus-private.pem
 **/pegasus.config.json
 **/clients.json
-**/*team-key*
-**/*team_key*
+# Fichier-secret local nommé exactement « team-key » (ex : copie de ~/.pegasus/team-key).
+# NB : pattern resserré pour ne PAS attraper make-team-key.mjs ni supabase/team-key-delivery.sql (non-secrets).
+**/team-key
+**/team_key
 .env
 *.env
 
@@ -19,6 +21,10 @@ Logo/
 **/node_modules/
 .DS_Store
 **/.DS_Store
+
+# ————— App desktop : artefacts de build (le .dmg est publié via Releases) —————
+/desktop/dist/
+/desktop/out/
 
 # NB : le zip du plugin WP (pegasus/wordpress-plugin/pegasus.zip) EST versionné
 # volontairement (distribution) — il ne contient que des clés publiques.
