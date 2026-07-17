@@ -1,15 +1,15 @@
 {
   "name": "pegasus",
   "description": "Gérer les sites WordPress des clients Orphic depuis Claude — contenus, thèmes, plugins, SEO, médias, multilingue. Sans FTP.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": { "name": "Orphic Agency", "url": "https://orphic-agency.com" },
   "homepage": "https://orphic-agency.com",
   "userConfig": {
     "team_key": {
       "type": "string",
       "title": "Clé d'équipe Pegasus",
-      "description": "Collez la clé d'équipe fournie par l'administrateur Pegasus (Sacha). Elle donne accès au registre des sites (Supabase) et à la clé de déchiffrement des mots de passe. Ne la partagez pas.",
-      "required": true
+      "description": "Facultatif ici : sur l'app desktop, configurez plutôt la clé avec la commande /pegasus:installer après l'installation. Elle donne accès au registre des sites (Supabase) et à la clé de déchiffrement. Ne la partagez pas.",
+      "required": false
     }
   }
 }

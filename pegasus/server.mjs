@@ -12,16 +12,24 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { privateDecrypt, constants } from "node:crypto";
+import { homedir } from "node:os";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-/* Clé d'équipe (plugin) : base64 d'un JSON {supabase_url, supabase_service_key, private_key}.
-   Fournie par Claude Code via PEGASUS_TEAM_KEY (userConfig du plugin), jamais dans le dépôt.
-   Repli : fichiers locaux (pegasus.config.json + pegasus-private.pem) pour le poste de dev historique. */
+/* Clé d'équipe : base64 d'un JSON {supabase_url, supabase_service_key, private_key}.
+   Sources, dans l'ordre :
+     1. variable d'env PEGASUS_TEAM_KEY (userConfig du plugin, si l'app la supporte)
+     2. fichier ~/.pegasus/team-key (déposé par la commande /pegasus:installer) ← cas app desktop
+     3. repli : fichiers locaux pegasus.config.json + pegasus-private.pem (poste de dev admin)
+   Jamais dans le dépôt. */
 let _team;
 function loadTeamKey() {
   if (_team !== undefined) return _team;
-  const tk = process.env.PEGASUS_TEAM_KEY;
+  let tk = process.env.PEGASUS_TEAM_KEY;
+  if (tk && tk.includes("${")) tk = "";                 // gabarit non substitué → ignorer
+  if (!tk) {
+    try { tk = readFileSync(join(homedir(), ".pegasus", "team-key"), "utf8").trim(); } catch {}
+  }
   if (!tk) return (_team = null);
   try { _team = JSON.parse(Buffer.from(tk.trim(), "base64").toString("utf8")); }
   catch { _team = null; }

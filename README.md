@@ -6,22 +6,19 @@ Ce dépôt est une **marketplace de plugin Claude Code**. Pegasus s'installe en 
 
 ---
 
-## 🚀 Installer (Claude Code desktop — sans terminal)
+## 🚀 Installer (app Claude Code desktop — sans terminal)
 
-Dans l'app Claude Code :
-
-```
-/plugin marketplace add OrphicDev/pegasus
-/plugin install pegasus@orphic
-```
-
-À l'installation, Claude Code demande la **Clé d'équipe Pegasus** → collez celle fournie par l'admin (Sacha), puis **redémarrez Claude Code**.
+1. Barre latérale → **Personnaliser** → **Plugins** → bouton **Ajouter** → **Ajouter une marketplace** → coller `OrphicDev/pegasus` → valider.
+2. Dans la liste (onglet marketplace **orphic**), cliquer **+** sur **Pegasus** → **Installer** (scope *User*).
+3. Dans le chat, taper `/pegasus:installer` → **coller la clé d'équipe** (fournie par l'admin) → **redémarrer Claude Code**.
 
 C'est tout. Vous avez maintenant :
 - les outils `pegasus_*` (Claude peut piloter les sites)
-- les commandes `/pegasus:sites`, `/pegasus:audit`, `/pegasus:connecter`
+- les commandes `/pegasus:sites`, `/pegasus:audit`, `/pegasus:connecter`, `/pegasus:installer`
 
 > Prérequis : Node.js (déjà là si vous avez Claude Code). Le serveur MCP est **sans aucune dépendance** — rien à installer.
+>
+> **En terminal (CLI)** : `/plugin marketplace add OrphicDev/pegasus` puis `/plugin install pegasus@orphic` fonctionnent aussi.
 
 ---
 
