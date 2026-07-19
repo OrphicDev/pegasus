@@ -59,7 +59,9 @@ OrphicDev/pegasus (ce dépôt = marketplace)
     ├── .claude-plugin/plugin.json      ← manifeste + userConfig (clé d'équipe)
     ├── .mcp.json                       ← lance server.mjs, injecte la clé d'équipe
     ├── server.mjs                      ← serveur MCP (zéro dépendance)
-    ├── commands/                       ← /pegasus:sites, :audit, :connecter
+    ├── commands/                       ← /pegasus:sites, :audit, :connecter, :critique
+    ├── skills/orphic-web-design/       ← constitution design de l'agence (SKILL.md + références + scripts)
+    ├── agents/                         ← orphic-critique, orphic-optimizer
     └── wordpress-plugin/pegasus.zip    ← plugin WP à installer sur les sites clients
 ```
 
@@ -70,3 +72,33 @@ OrphicDev/pegasus (ce dépôt = marketplace)
 ## 🛠️ Outils disponibles
 
 `list_clients`, `health`, `inspect`, `diagnostic`, `list_themes`, `install_theme`, `activate_theme`, `install_plugin`, `activate_plugin`, `seo_audit`, `seo_set`, `seo_site`, `upload_media`, `list_content`, `get_content`, `update_content`.
+
+## 🎨 Design — skill `orphic-web-design` + agents
+
+Depuis la v0.3.0, le plugin embarque la **constitution design web d'Orphic** :
+
+- **`skills/orphic-web-design/`** — la doctrine complète : règle-mère, 4 interdits,
+  offre à 4 niveaux (Premium → Ultra luxe, frontière « Blender ou pas Blender »),
+  signature (2 couleurs, matière avant couleur, une idée singulière), workflow en
+  6 phases, zones protégées, boucle de critique. Références (`aesthetic`, `sites`,
+  `stack`, `3d-pipeline`, `critique`) + 4 scripts de mesure (contraste WCAG,
+  audit de page, budgets perf PageSpeed, budgets .glb). Le skill se déclenche
+  automatiquement dès qu'une conversation touche au design web.
+- **Agent `orphic-critique`** — exécute la boucle de critique obligatoire avant
+  chaque livraison : scripts d'abord (faits), puis les 4 grilles (jugement).
+  Il critique, il ne corrige jamais. Entrée directe : `/pegasus:critique <cible>`.
+- **Agent `orphic-optimizer`** — phase 6 uniquement (vitesse + SEO) sur une DA
+  déjà validée, sous le régime des **zones protégées** : il optimise autour de
+  la DA, jamais dedans.
+
+Gouvernance : **Sacha juge le goût, la machine mesure le mesurable.**
+
+### Protocole d'évolution du skill : fichiers d'abord
+
+La doctrine évolue **par ce dépôt** (git) : on modifie les fichiers du skill,
+on bump la version du plugin, chaque poste récupère la mise à jour via la
+marketplace. Avantages : versionné, relisible en diff, distribué par le canal
+déjà en place, zéro infra. Supabase/Pegasus reste le registre des **sites**,
+pas de la doctrine ; si un jour on veut de la donnée vivante par client
+(DA validées, historique de critiques, mesures perf), elle s'ajoutera en
+table Supabase à côté — sans rien changer au skill fichiers.

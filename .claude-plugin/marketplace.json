@@ -8,8 +8,8 @@
     {
       "name": "pegasus",
       "source": "./pegasus",
-      "description": "Gérer les sites WordPress des clients Orphic depuis Claude (contenus, thèmes, plugins, SEO, médias, multilingue). Sans FTP.",
-      "version": "0.2.1",
+      "description": "Gérer les sites WordPress des clients Orphic depuis Claude (contenus, thèmes, plugins, SEO, médias, multilingue). Sans FTP. Inclut le skill orphic-web-design + agents critique/optimisation.",
+      "version": "0.3.0",
       "author": { "name": "Orphic Agency" }
     }
   ]
