@@ -37,8 +37,8 @@ Lance ce qui s'applique depuis
   texte/fond relevé dans la cible ;
 - `python3 audit_page.py URL` si la page est en ligne ;
 - `python3 check_glb.py fichier.glb [--hero]` sur chaque asset 3D ;
-- `python3 check_perf_budget.py URL [mobile|desktop]` seulement si on est en
-  phase 6 (lent : 20-60 s).
+- `python3 check_perf_budget.py URL [mobile|desktop]` seulement en phase
+  d'optimisation (lent : 20-60 s).
 Un FAIL script = correction obligatoire, à lister AVANT le jugement de goût.
 Ne jamais estimer toi-même ce qu'un script sait mesurer.
 

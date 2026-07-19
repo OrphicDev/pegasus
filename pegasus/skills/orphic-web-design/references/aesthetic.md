@@ -1,9 +1,31 @@
 # Esthétique Orphic — la signature en profondeur
 
-## 1. Le registre par défaut : dark premium
+## 1. Les registres Orphic — aucun par défaut
 
-Fond **noir profond ou ardoise** (#0a0a0c → #2d2f36), jamais de blanc clinique
-par défaut. Sur ce fond, UNE matière qui capte la lumière :
+La signature est une **méthode** (retenue, mono-focal, matière, hiérarchie
+typo, palette 2 couleurs, une idée singulière) qui s'exécute dans un
+**registre choisi selon le client** (croisement business × niveau ×
+registre, SKILL.md §7) — jamais par goût personnel. Quatre registres à
+égalité :
+
+| Registre | Référence | Fond | Force | Pour |
+|---|---|---|---|---|
+| **Sombre-dramatique** | Images signature (chevaux chrome/or), Igloo, Gatt | Noir/ardoise | Matière + lumière | Luxe, production, cinéma, nightlife, tech premium |
+| **Clair-épuré** | Kalinsky | Blanc cassé/gris chaud | Espace + précision | Corporate élégant, éditorial, portfolio sobre |
+| **Chaleureux-ludique** | Trionn | Teintes chaudes assumées | Personnalité + micro-interactions partout | Marques vivantes, restauration, événementiel |
+| **Clair-conversion** | Emotions Arts (projet Orphic) | Clair chaleureux | Séduction au service du CTA | Vitrine + devis/vente, spectacle, artisanat |
+
+Ne jamais mélanger deux registres dans un même site sans concept fort
+(ex. duality noir/blanc de Baillat par Locomotive — mais c'est LE concept
+du site, pas un accident).
+
+## 2. Le sombre-dramatique en détail
+
+Le goût personnel de Sacha et le pont direct avec l'univers Blender/packshots
+d'Orphic Production — le registre le plus documenté ici, PAS le défaut.
+
+Fond **noir profond ou ardoise** (#0a0a0c → #2d2f36), jamais de blanc
+clinique. Sur ce fond, UNE matière qui capte la lumière :
 
 - **Chrome / métal liquide** — reflets nets, hautes lumières brûlées contrôlées
 - **Verre / cristal** — réfraction, aberration chromatique subtile, caustiques
@@ -13,7 +35,7 @@ par défaut. Sur ce fond, UNE matière qui capte la lumière :
 Le fond disparaît, la lumière sculpte. Un seul objet/élément lumineux focal
 par écran. Le reste se tait.
 
-## 2. Glow et lumière
+## 3. Glow et lumière
 
 - Glow = accent, jamais ambiance générale. Un liseré, un halo derrière le focal,
   une lueur au hover. Si tout brille, rien ne brille.
@@ -22,7 +44,7 @@ par écran. Le reste se tait.
 - Éviter le glow multicolore RGB "gamer" sauf univers client assumé
   (esports, gaming, nightlife).
 
-## 3. Palette
+## 4. Palette
 
 - **2 couleurs par défaut.** Preuve par les références : Igloo (#b6bac5/#383e4e),
   Lusion (noir/blanc), Organimo (#e7e6f0/#2d2f36), Basement (#FF4D00/noir),
@@ -32,7 +54,7 @@ par écran. Le reste se tait.
   Pour le luxe : matières nobles en shader (or liquide, soie, marbre) plutôt
   que dégradés colorés.
 
-## 4. Typographie
+## 5. Typographie
 
 - Hiérarchie nette : 1 display fort + 1 texte lisible suffisent.
 - Registre Orphic : fines, aérées, tracking généreux sur les capitales,
@@ -41,22 +63,7 @@ par écran. Le reste se tait.
   variable animée, SplitType au caractère, typo en shader (registre Igloo).
 - Interdit : plus de 2 familles ; graisses multiples sans logique.
 
-## 5. Les deux minimalismes Orphic
-
-Deux registres valides, même philosophie (la retenue) :
-
-| | Sombre-dramatique | Clair-épuré |
-|---|---|---|
-| Référence | Images signature (chevaux chrome/or), Igloo, Gatt | Kalinsky |
-| Fond | Noir/ardoise | Blanc cassé/gris chaud |
-| Force | Matière + lumière | Espace + précision |
-| Pour | Luxe, production, cinéma, nightlife, tech premium | Corporate élégant, éditorial, portfolio sobre |
-
-Le choix se fait en phase 3 selon l'univers client. Ne jamais mélanger les
-deux registres dans un même site sans concept fort (ex. duality noir/blanc
-de Baillat par Locomotive — mais c'est LE concept du site, pas un accident).
-
-## 6. Pièges connus de ce registre
+## 6. Pièges connus (surtout en registre sombre)
 
 - **Neumorphism** : magnifique en shot Dribbble, illisible en usage (contrastes
   trop faibles). S'inspirer de la matière (surfaces extrudées, ombres douces)
@@ -72,7 +79,8 @@ de Baillat par Locomotive — mais c'est LE concept du site, pas un accident).
 
 ## 7. Le pont Blender ↔ Web
 
-La DA web Orphic et la DA 3D d'Orphic Production sont LE MÊME univers :
+En registre sombre-dramatique, la DA web Orphic et la DA 3D d'Orphic
+Production sont LE MÊME univers :
 objet-matière sur fond noir, une source lumineuse qui sculpte, contraste
 extrême. Les packshots Blender (lentille cinéma, showroom nocturne) sont la
 banque d'assets et de références internes. Tout projet niveau 2-3 doit

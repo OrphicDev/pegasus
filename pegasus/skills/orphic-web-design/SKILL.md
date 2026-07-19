@@ -113,36 +113,61 @@ Méthode (toujours) :
 - Typo : hiérarchie nette, souvent fine et aérée, espace négatif généreux.
 - Chaque projet contient **une idée signature** que personne d'autre n'a.
 
-Registre par défaut (si l'univers client est compatible ou indéfini) :
-**dark premium** — fond noir/ardoise profond, matière réfléchissante
-(chrome, verre, or), glow contrôlé, typo fine claire. Voir
-`references/aesthetic.md` pour le détail complet.
+**Aucun registre par défaut.** La signature est une MÉTHODE, pas un style.
+Les registres sont à égalité, choisis au cadrage selon le client (voir §7) :
+**sombre-dramatique** (chrome/verre/or sur noir — le goût personnel de Sacha
+et l'univers Blender/packshots d'Orphic Production), **clair-épuré**
+(Kalinsky), **chaleureux-ludique** (Trionn), **clair-conversion**
+(Emotions Arts). Détail complet dans `references/aesthetic.md`.
 
-Si le client a un univers fort (clair, coloré, institutionnel) : la méthode
-s'applique, le registre suit le client. La signature est une voix, pas un
-uniforme — l'interdit #2 s'applique aussi à Orphic lui-même.
+La signature est une voix, pas un uniforme — l'interdit #2 s'applique aussi
+à Orphic lui-même : appliquer mécaniquement le registre sombre partout
+serait notre propre template.
 
-## 6. Workflow projet — qui juge quoi
+## 6. Références = des ingrédients, jamais des modèles
 
-Pipeline en 6 phases. Règle de gouvernance : **Sacha juge le goût, la machine
-mesure le mesurable.** Ne jamais inverser.
+Une référence fournit des **ingrédients à extraire et recombiner** —
+registre, niveau, palette, matière, pattern d'animation, intention — jamais
+un modèle à copier. Trop ressembler à une réf est un échec (interdit #2),
+même si la réf plaisait au client. C'est aussi la réponse au N4 ultra-luxe
+sans réf parfaite : croiser des refs partielles (la matière d'Igloo +
+l'ambiance d'une joaillerie N2 + un pattern d'interaction d'ailleurs) —
+l'absence de modèle garantit l'originalité.
 
-1. **Cadrage client** (humain) — brief complet : objectifs, cibles, concurrents,
-   assets, contraintes, ton.
-2. **Stratégie + arborescence** (conversation) — pages, sections, textes.
-3. **Recherche de DA** (boucle créative, Sacha juge) — premières maquettes
-   nourries par ce skill. Itérer TANT QUE la DA ne convient pas. Jamais
-   d'autonomie ici.
-4. **Raffinement** section par section, composant par composant — animations,
-   textes (1re passe). Sacha juge toujours.
-5. **Check général** — 1re passe qualité sur tout le site.
-6. **Optimisation** page par page (vitesse, SEO) — phase mesurable, agent
-   autorisé, MAIS sous zones protégées (voir §7).
+Les refs fournies par le client sont **optionnelles** : le skill fonctionne
+sans, mais les exploite comme ingrédients si elles existent. Banque de
+départ : `references/sites.md` et `references/secteurs.md` ; banque
+vivante : la bibliothèque Orphic (§10).
 
-## 7. Zones protégées (pour toute optimisation automatisée)
+## 7. Cadrage et workflow — qui juge quoi
 
-Quand un agent ou une passe d'optimisation intervient (phase 6), la DA validée
-en phase 3-4 est **intouchable** :
+Un projet ne se définit pas par un style : il se définit par le croisement
+**business/secteur × niveau (N1-N4) × registre**. Les trois axes sont
+indépendants — un yachting peut être clair-épuré N2, un restaurant
+sombre-dramatique N1 (`references/secteurs.md` donne les ingrédients par
+secteur).
+
+Règle de gouvernance : **Sacha juge le goût, la machine mesure le
+mesurable.** Ne jamais inverser.
+
+- **Étape 1 — Stratégie & arborescence (le QUOI).** Client type (business,
+  catégorie, niveau de luxe visé) + brief overall (objectifs,
+  fonctionnalités) + refs client si fournies. On construit l'arborescence
+  ensemble → validation client. AUCUN design ici.
+- **Étape 2 — Conception (le COMMENT).** Brief design + niveau
+  **réalisable** (budget × temps). Le niveau visé en étape 1 n'est pas
+  forcément le niveau réalisable : l'offre 4 paliers (§3) sert d'outil de
+  négociation. Puis recherche de DA — boucle créative, Sacha juge, itérer
+  TANT QUE la DA ne convient pas, jamais d'autonomie ici.
+- **Production.** Raffinement section par section, composant par composant
+  (Sacha juge toujours) → check général → **optimisation** page par page
+  (vitesse, SEO) — seule phase où un agent est autorisé, sous zones
+  protégées (§8).
+
+## 8. Zones protégées (pour toute optimisation automatisée)
+
+Quand un agent ou une passe d'optimisation intervient (phase d'optimisation,
+fin de production), la DA validée est **intouchable** :
 
 - Ne pas supprimer/simplifier une animation validée ; proposer une alternative
   au même effet visuel si elle coûte trop cher, et demander validation.
@@ -151,7 +176,7 @@ en phase 3-4 est **intouchable** :
 - Optimiser AUTOUR de la DA (code, chargement, ordre, cache, formats),
   jamais DEDANS sans validation humaine.
 
-## 8. Boucle de critique obligatoire
+## 9. Boucle de critique obligatoire
 
 Aucune maquette ne part sans au moins **une passe de critique** contre ce skill.
 Protocole complet dans `references/critique.md`. Version courte : **faits
@@ -165,16 +190,45 @@ lui seul sait évaluer : singularité, intention, matière, goût.
 | Script | Vérifie | Quand |
 |---|---|---|
 | `scripts/check_contrast.py fg bg [--large]` | Ratio WCAG AA/AAA (interdit #3) | Chaque couple texte/fond de la maquette |
-| `scripts/audit_page.py URL` | SEO de base, nb polices, couleurs CSS, reduced-motion, alt, libs, poids | Phase 5 et avant toute livraison d'une page en ligne |
-| `scripts/check_perf_budget.py URL [mobile\|desktop]` | LCP/CLS/INP réels vs budgets (interdit #4), via PageSpeed | Phase 6 ; lent (20-60 s), lancer en fin de passe |
+| `scripts/audit_page.py URL` | SEO de base, nb polices, couleurs CSS, reduced-motion, alt, libs, poids | Check général et avant toute livraison d'une page en ligne |
+| `scripts/audit_refs.py URL1 URL2… [--file liste.txt]` | Audit groupé de refs : agrège audit_page (libs, polices, palettes) pour comparer | Constitution d'un dossier de refs ; veille |
+| `scripts/check_perf_budget.py URL [mobile\|desktop]` | LCP/CLS/INP réels vs budgets (interdit #4), via PageSpeed | Phase d'optimisation ; lent (20-60 s), lancer en fin de passe |
 | `scripts/check_glb.py fichier.glb [--hero]` | Taille, triangles, Draco vs budgets 3D | Chaque export Blender→web (N3 pré-rendu, N4 temps réel) |
 
-## 9. Annexes — quand lire quoi
+## 10. Bibliothèque Orphic & protocole d'évolution
+
+Ce skill porte la **méthode** (stable). Les **données vivantes** — références,
+animations validées, fiches secteurs — vivent dans la bibliothèque Orphic
+(Supabase, via les outils MCP Pegasus), enrichie au quotidien par la veille
+de l'équipe :
+
+- `pegasus_get_references` — chercher (filtres : kind, niveau, registre,
+  business, intention, texte libre). À interroger au cadrage et en recherche
+  de DA, en complément de `references/sites.md` et `secteurs.md`.
+- `pegasus_add_reference` — proposer (statut `candidat` par défaut).
+- `pegasus_validate_reference` — passer en `valide` : décision humaine
+  explicite UNIQUEMENT. Ne jamais valider de sa propre initiative.
+
+Flux : **proposer (candidat) → valider (humain) → enregistré (base) →
+vivant pour toute l'agence.**
+
+Quand un secteur, une référence ou une animation manque :
+1. Ne pas bloquer.
+2. Construire les ingrédients à la volée (analyse + recherche web si besoin).
+3. S'en servir pour le projet en cours.
+4. Proposer de l'enregistrer en candidat dans la bibliothèque (ou dans les
+   .md du skill si Pegasus est indisponible).
+5. Validation humaine → disponible pour toute l'agence.
+
+Le skill démarre incomplet et devient complet **par l'usage**.
+
+## 11. Annexes — quand lire quoi
 
 | Fichier | Lire quand |
 |---|---|
-| `references/aesthetic.md` | Définir ou évaluer une DA, choisir palette/matière/typo |
+| `references/aesthetic.md` | Définir ou évaluer une DA, choisir registre/palette/matière/typo |
 | `references/sites.md` | Chercher une référence, positionner un projet, argumenter un choix |
+| `references/secteurs.md` | Cadrer un projet pour un secteur Monaco/Riviera ; ingrédients métier |
 | `references/stack.md` | Choisir une lib d'animation/3D, arbitrer une techno |
 | `references/3d-pipeline.md` | Tout projet N2-N4 : 3D perçue, pré-rendu, temps réel, shaders, budgets |
 | `references/critique.md` | Avant CHAQUE livraison de maquette ; construire un prompt de critique |

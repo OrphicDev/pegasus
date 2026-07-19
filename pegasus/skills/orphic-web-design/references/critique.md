@@ -8,7 +8,7 @@ qui sépare "correct" de "signature". 2-3 itérations par livrable.
 0. **Faits d'abord (scripts, zéro jugement)** — lancer ce qui s'applique :
    `check_contrast.py` sur chaque couple texte/fond, `audit_page.py` si la
    page est en ligne, `check_glb.py` sur chaque asset 3D,
-   `check_perf_budget.py` en phase 6. Un FAIL script = correction
+   `check_perf_budget.py` en phase d'optimisation. Un FAIL script = correction
    obligatoire AVANT la critique de goût. Ne jamais demander au LLM
    d'estimer ce qu'un script peut mesurer.
 1. **Générer** la maquette/section selon le brief + ce skill.
@@ -49,8 +49,10 @@ Poser la maquette face aux pôles (references/sites.md) :
   = échec)
 - Qu'est-ce qu'Akaru dirait ? (technique justifiée par le projet, ou
   démonstration de force ?)
-- Niveau technique choisi (0-3) : est-il justifié par budget/délai/intention,
+- Niveau technique choisi (N1-N4) : est-il justifié par budget/délai/intention,
   ou par envie de montrer ?
+- Trop proche d'une réf (fournie par le client ou de la banque) ? Une réf
+  donne des ingrédients, jamais un modèle — recombiner ou recommencer.
 
 ## Grille 4 — Intention (selon l'axe du projet)
 
@@ -70,7 +72,7 @@ Poser la maquette face aux pôles (references/sites.md) :
 - "Qu'est-ce qui pèse le plus, et le rendu le justifie-t-il ?"
 - "Si Igloo/Lusion/Akaru voyaient ça, que critiqueraient-ils en premier ?"
 
-## Zones protégées — rappel pour l'optimisation (phase 6)
+## Zones protégées — rappel pour la phase d'optimisation
 
 Une fois la DA validée par Sacha, elle devient intouchable pour toute passe
 d'optimisation automatisée. L'optimisation travaille sur : code, ordre de

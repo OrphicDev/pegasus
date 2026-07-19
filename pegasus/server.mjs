@@ -130,6 +130,32 @@ async function pegasus(key, method, path, body) {
   return data;
 }
 
+/* ————— Bibliothèque Orphic (références vivantes) — table references_library —————
+   Architecture « méthode stable / données vivantes » : le skill orphic-web-design
+   porte la méthode, cette table porte les données (refs, animations, secteurs).
+   Flux : proposer (candidat) → valider (humain) → vivant pour toute l'agence. */
+async function supa(path, opts = {}) {
+  const cfg = loadConfig();
+  if (!cfg.supabase_url || !cfg.supabase_service_key) {
+    throw new Error("Supabase non configuré (clé d'équipe manquante — /pegasus:installer).");
+  }
+  const url = cfg.supabase_url.replace(/\/$/, "");
+  const res = await fetch(`${url}/rest/v1${path}`, {
+    ...opts,
+    headers: {
+      apikey: cfg.supabase_service_key,
+      Authorization: `Bearer ${cfg.supabase_service_key}`,
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Supabase ${res.status} : ${text.slice(0, 200)}`);
+  try { return text ? JSON.parse(text) : null; } catch { return { raw: text.slice(0, 300) }; }
+}
+
+const REF_FIELDS = ["kind", "titre", "url", "niveau", "technique", "intention", "registre", "business", "ingredients", "notes"];
+
 const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
 const ko = (e) => ({ content: [{ type: "text", text: `Erreur : ${e.message}` }], isError: true });
 
@@ -276,6 +302,57 @@ const TOOLS = [
       required: ["client", "id"],
     },
   },
+  {
+    name: "pegasus_get_references",
+    description: "Bibliothèque Orphic (Supabase) : cherche des références de design vivantes — sites, animations, matières, fiches secteur — enrichies par la veille de l'équipe. Utilisée par le skill orphic-web-design au cadrage et en recherche de DA. Par défaut, ne renvoie que les références validées.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        kind: { type: "string", description: "site | animation | matiere | secteur | autre" },
+        niveau: { type: "string", description: "N1 | N2 | N3 | N4" },
+        registre: { type: "string", description: "sombre-dramatique | clair-epure | chaleureux-ludique | clair-conversion" },
+        business: { type: "string", description: "secteur / type de client (recherche partielle, ex 'yachting')" },
+        intention: { type: "string", description: "vitrine | produit | univers" },
+        q: { type: "string", description: "texte libre (titre, ingrédients, technique, notes)" },
+        statut: { type: "string", description: "'valide' (défaut), 'candidat' ou 'tous'" },
+        limit: { type: "number", description: "défaut 30" },
+      },
+    },
+  },
+  {
+    name: "pegasus_add_reference",
+    description: "Propose une référence dans la bibliothèque Orphic, en statut 'candidat' (flux veille : proposer → valider par un humain → vivant pour toute l'agence). Une référence = des ingrédients à recombiner, jamais un modèle. Ne passer statut='valide' QUE sur validation humaine explicite dans la conversation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        titre: { type: "string" },
+        kind: { type: "string", description: "site | animation | matiere | secteur | autre (défaut 'site')" },
+        url: { type: "string" },
+        niveau: { type: "string", description: "N1-N4" },
+        technique: { type: "string", description: "libs/techniques, ex 'Curtains.js + GSAP'" },
+        intention: { type: "string", description: "vitrine | produit | univers" },
+        registre: { type: "string" },
+        business: { type: "string", description: "secteur client, ex 'yachting'" },
+        ingredients: { type: "string", description: "ce qu'on en extrait et recombine" },
+        notes: { type: "string" },
+        auteur: { type: "string", description: "qui propose (prénom)" },
+        statut: { type: "string", description: "'candidat' (défaut) ; 'valide' uniquement sur validation humaine explicite" },
+      },
+      required: ["titre"],
+    },
+  },
+  {
+    name: "pegasus_validate_reference",
+    description: "Passe une référence candidate de la bibliothèque Orphic en 'valide' (ou 'rejete'). Réservé à une décision humaine explicite (Sacha ou le dev qui valide) — jamais à l'initiative de Claude.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number" },
+        statut: { type: "string", description: "'valide' (défaut) ou 'rejete'" },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 async function callTool(name, a = {}) {
@@ -333,6 +410,44 @@ async function callTool(name, a = {}) {
         for (const k of ["title", "content", "status", "elementor_data"]) if (a[k] !== undefined) body[k] = a[k];
         return ok(await pegasus(a.client, "POST", `/content/${a.id}`, body));
       }
+      case "pegasus_get_references": {
+        const p = new URLSearchParams();
+        p.set("select", "*");
+        p.set("order", "created_at.desc");
+        if (a.kind) p.set("kind", `eq.${a.kind}`);
+        if (a.niveau) p.set("niveau", `eq.${a.niveau}`);
+        if (a.registre) p.set("registre", `eq.${a.registre}`);
+        if (a.intention) p.set("intention", `eq.${a.intention}`);
+        if (a.business) p.set("business", `ilike.*${a.business}*`);
+        const statut = a.statut || "valide";
+        if (statut !== "tous") p.set("statut", `eq.${statut}`);
+        if (a.q) p.set("or", `(titre.ilike.*${a.q}*,ingredients.ilike.*${a.q}*,technique.ilike.*${a.q}*,notes.ilike.*${a.q}*)`);
+        p.set("limit", String(a.limit || 30));
+        return ok(await supa(`/references_library?${p.toString()}`));
+      }
+      case "pegasus_add_reference": {
+        if (!a.titre) throw new Error("titre obligatoire.");
+        const row = { statut: a.statut === "valide" ? "valide" : "candidat" };
+        if (a.auteur) row.auteur = a.auteur;
+        for (const k of REF_FIELDS) if (a[k] !== undefined) row[k] = a[k];
+        const r = await supa("/references_library", {
+          method: "POST",
+          body: JSON.stringify(row),
+          headers: { Prefer: "return=representation" },
+        });
+        return ok({ enregistré: r, rappel: row.statut === "candidat" ? "Statut candidat — validation humaine requise (pegasus_validate_reference)." : "Enregistrée comme validée." });
+      }
+      case "pegasus_validate_reference": {
+        if (!a.id) throw new Error("id obligatoire.");
+        const statut = a.statut === "rejete" ? "rejete" : "valide";
+        const r = await supa(`/references_library?id=eq.${a.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ statut }),
+          headers: { Prefer: "return=representation" },
+        });
+        if (!r || !r.length) throw new Error(`Référence ${a.id} introuvable.`);
+        return ok(r);
+      }
       default:
         return ko(new Error(`Outil inconnu : ${name}`));
     }
@@ -355,7 +470,7 @@ async function handle(msg) {
       return reply(id, {
         protocolVersion: (params && params.protocolVersion) || PROTO,
         capabilities: { tools: {} },
-        serverInfo: { name: "pegasus", version: "0.2.0" },
+        serverInfo: { name: "pegasus", version: "0.4.0" },
       });
     case "notifications/initialized":
     case "notifications/cancelled":

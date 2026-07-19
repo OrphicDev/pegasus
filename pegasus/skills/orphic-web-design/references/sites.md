@@ -3,6 +3,12 @@
 Sélection personnelle de Sacha + refs complémentaires validées. Chaque projet
 doit pouvoir être positionné par rapport à ces pôles.
 
+**Une référence = des ingrédients à recombiner** (registre, niveau, palette,
+matière, pattern d'animation, intention), **jamais un modèle à copier** —
+trop ressembler à une réf est un échec (interdit #2), même si elle plaisait.
+Banque vivante en complément : `pegasus_get_references` (bibliothèque
+Orphic, SKILL.md §10).
+
 ## Pôles 3D
 
 ### Igloo.inc — niveau 2, luxe froid minéral
@@ -78,8 +84,8 @@ doit pouvoir être positionné par rapport à ces pôles.
 - Leçons : (1) **aucune zone morte** — menu, footer, 404, hovers : chaque
   point de contact est travaillé, la singularité se joue aussi dans les
   recoins ; (2) un univers de marque peut être ludique et chaleureux —
-  complément du registre atmosphérique de Gatt, utile quand le dark premium
-  ne convient pas au client ; (3) miroir du positionnement Orphic
+  complément du registre atmosphérique de Gatt, utile quand le registre
+  sombre ne convient pas au client ; (3) miroir du positionnement Orphic
   (studio augmenté par l'IA).
 
 ### Emotions Arts (emotions-arts.com) — N2 en registre clair, projet Orphic
@@ -89,7 +95,7 @@ doit pouvoir être positionné par rapport à ces pôles.
 - Polices : Cormorant Garamond + Jost (2 familles, combo serif/sans classe).
   Trilingue FR/EN/IT. `prefers-reduced-motion` présent.
 - Leçons : (1) preuve qu'Orphic livre du **N2 en registre clair/chaleureux**,
-  hors dark premium — la signature est une méthode, pas un uniforme ;
+  hors registre sombre — la signature est une méthode, pas un uniforme ;
   (2) intention vitrine+conversion (devis) : le motion sert la séduction et le
   CTA, pas la démonstration technique.
 

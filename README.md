@@ -73,32 +73,54 @@ OrphicDev/pegasus (ce dépôt = marketplace)
 
 `list_clients`, `health`, `inspect`, `diagnostic`, `list_themes`, `install_theme`, `activate_theme`, `install_plugin`, `activate_plugin`, `seo_audit`, `seo_set`, `seo_site`, `upload_media`, `list_content`, `get_content`, `update_content`.
 
-## 🎨 Design — skill `orphic-web-design` + agents
+## 🎨 Design — skill `orphic-web-design`, bibliothèque vivante + agents
 
-Depuis la v0.3.0, le plugin embarque la **constitution design web d'Orphic** :
+Depuis la v0.4.0, le plugin embarque la **constitution design web d'Orphic** :
 
-- **`skills/orphic-web-design/`** — la doctrine complète : règle-mère, 4 interdits,
+- **`skills/orphic-web-design/`** — la doctrine : règle-mère, 4 interdits,
   offre à 4 niveaux (Premium → Ultra luxe, frontière « Blender ou pas Blender »),
-  signature (2 couleurs, matière avant couleur, une idée singulière), workflow en
-  6 phases, zones protégées, boucle de critique. Références (`aesthetic`, `sites`,
-  `stack`, `3d-pipeline`, `critique`) + 4 scripts de mesure (contraste WCAG,
-  audit de page, budgets perf PageSpeed, budgets .glb). Le skill se déclenche
-  automatiquement dès qu'une conversation touche au design web.
-- **Agent `orphic-critique`** — exécute la boucle de critique obligatoire avant
-  chaque livraison : scripts d'abord (faits), puis les 4 grilles (jugement).
-  Il critique, il ne corrige jamais. Entrée directe : `/pegasus:critique <cible>`.
-- **Agent `orphic-optimizer`** — phase 6 uniquement (vitesse + SEO) sur une DA
-  déjà validée, sous le régime des **zones protégées** : il optimise autour de
-  la DA, jamais dedans.
+  signature = une méthode (aucun registre par défaut — 4 registres à égalité),
+  références = des ingrédients à recombiner, cadrage en 2 étapes (le QUOI puis
+  le COMMENT, croisement business × niveau × registre), zones protégées, boucle
+  de critique. Références (`aesthetic`, `sites`, `secteurs` Monaco/Riviera,
+  `stack`, `3d-pipeline`, `critique`) + 5 scripts de mesure (contraste WCAG,
+  audit de page, audit groupé de refs, budgets perf PageSpeed, budgets .glb).
+  Le skill se déclenche automatiquement dès qu'une conversation touche au
+  design web.
+- **Agent `orphic-critique`** — boucle de critique obligatoire avant chaque
+  livraison : scripts d'abord (faits), puis les 4 grilles (jugement). Il
+  critique, il ne corrige jamais. Entrée directe : `/pegasus:critique <cible>`.
+- **Agent `orphic-optimizer`** — phase d'optimisation uniquement (vitesse +
+  SEO) sur une DA déjà validée, sous **zones protégées** : il optimise autour
+  de la DA, jamais dedans.
 
 Gouvernance : **Sacha juge le goût, la machine mesure le mesurable.**
+L'agent optimise sous contrainte ; il ne crée jamais de design en autonomie
+(l'autonomie est l'ennemie de la singularité).
 
-### Protocole d'évolution du skill : fichiers d'abord
+### Méthode stable / données vivantes — la bibliothèque Orphic
 
-La doctrine évolue **par ce dépôt** (git) : on modifie les fichiers du skill,
-on bump la version du plugin, chaque poste récupère la mise à jour via la
-marketplace. Avantages : versionné, relisible en diff, distribué par le canal
-déjà en place, zéro infra. Supabase/Pegasus reste le registre des **sites**,
-pas de la doctrine ; si un jour on veut de la donnée vivante par client
-(DA validées, historique de critiques, mesures perf), elle s'ajoutera en
-table Supabase à côté — sans rien changer au skill fichiers.
+Le skill (fichiers, versionné git, distribué par la marketplace) porte la
+**méthode** — elle bouge rarement. Les **données** — références de sites,
+animations validées, fiches secteurs, issues de la veille quotidienne des
+devs — vivent dans **Supabase** via 3 outils MCP :
+
+- `pegasus_get_references` — chercher (kind, niveau, registre, business,
+  intention, texte libre ; validées par défaut)
+- `pegasus_add_reference` — proposer un **candidat**
+- `pegasus_validate_reference` — valider/rejeter (décision humaine uniquement)
+
+Flux : **proposer (candidat) → valider (humain) → vivant pour toute l'agence.**
+
+> **Installation (une fois, admin)** : coller `supabase/references-library.sql`
+> dans Supabase → SQL Editor (projet Pegasus). Tant que la table n'existe pas,
+> les 3 outils renvoient une erreur explicite ; le skill retombe sur ses .md.
+
+### Feuille de route skills & agents
+
+Skills à dériver après le projet pilote : `orphic-motion` (lié à la veille),
+`orphic-3d-webgl`, `orphic-perf-seo`, `orphic-monitoring-seo`. Agents
+prioritaires ensuite : **monitoring** du parc (uptime, perf, CVE, SSL, liens
+morts, SEO) et **reporting** (SEO / campagnes / risques) — 1 seul appel LLM,
+~90 % code. Méthode convenue : un projet client **pilote** avec le skill
+racine, puis dérivation depuis les apprentissages.
