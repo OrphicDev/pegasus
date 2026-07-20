@@ -2,7 +2,7 @@
 /*
 Plugin Name: Pegasus
 Description: Pont d'administration à distance pour Orphic Agency — inspection, contenus (dont Elementor JSON), médias et extensions, via l'API REST authentifiée par Application Password.
-Version: 0.1.0
+Version: 0.8.0
 Author: Orphic Agency
 Requires at least: 6.0
 Requires PHP: 7.4
@@ -52,7 +52,7 @@ if (file_exists(__DIR__ . '/config.php')) require_once __DIR__ . '/config.php';
 class Pegasus {
 
     const NS  = 'pegasus/v1';
-    const VER = '0.7.5';
+    const VER = '0.8.0';
     const MAX_ZIP = 52428800;  // 50 Mo
     const MAX_MEDIA = 67108864; // 64 Mo (base64 ; au-delà : upload par URL)
 
@@ -69,6 +69,76 @@ class Pegasus {
         /* Couche SEO de secours : n'agit que sur les sites SANS plugin SEO, et seulement si activée par /seo/set */
         add_filter('pre_get_document_title', [__CLASS__, 'seo_fallback_title']);
         add_action('wp_head', [__CLASS__, 'seo_fallback_head'], 1);
+        /* Mesure d'audience « first-party » (sans cookie, RGPD) : une visite front = une ligne */
+        add_action('template_redirect', [__CLASS__, 'track']);
+    }
+
+    /* ═══════════════════ AUDIENCE — mesure interne (sans cookie) ═══════════════════ */
+    private static function hits_table() { global $wpdb; return $wpdb->prefix . 'pegasus_hits'; }
+    /* Crée la table à la volée (idempotent, marqué par une option de version) */
+    private static function ensure_hits_table() {
+        if (get_option('pegasus_hits_v') === '1') return;
+        global $wpdb;
+        $t = self::hits_table();
+        $charset = $wpdb->get_charset_collate();
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        dbDelta("CREATE TABLE $t (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            ts DATETIME NOT NULL,
+            day DATE NOT NULL,
+            path VARCHAR(190) NOT NULL DEFAULT '',
+            source VARCHAR(80) NOT NULL DEFAULT 'Direct',
+            country CHAR(2) NOT NULL DEFAULT '',
+            device VARCHAR(10) NOT NULL DEFAULT '',
+            vid CHAR(32) NOT NULL DEFAULT '',
+            PRIMARY KEY (id), KEY day (day), KEY vid (vid)
+        ) $charset;");
+        update_option('pegasus_hits_v', '1', false);
+    }
+    /* Classe la provenance à partir du référent / des UTM */
+    private static function classify_source($ref, $utm, $self_host) {
+        if ($utm) return substr(ucfirst($utm), 0, 80);
+        if (!$ref) return 'Direct';
+        $h = strtolower(parse_url($ref, PHP_URL_HOST) ?: '');
+        if (!$h || $h === $self_host || $h === 'www.' . $self_host) return 'Direct';
+        if (strpos($h, 'google.') !== false)  return 'Google';
+        if (strpos($h, 'bing.') !== false)    return 'Bing';
+        if (strpos($h, 'duckduckgo') !== false) return 'DuckDuckGo';
+        if (strpos($h, 'yahoo') !== false)    return 'Yahoo';
+        if (preg_match('~(facebook|instagram|fb\.|t\.co|twitter|x\.com|linkedin|pinterest|tiktok|youtube|snapchat)~', $h)) return 'Réseaux sociaux';
+        return preg_replace('~^www\.~', '', $h); // référent (autre site)
+    }
+    public static function track() {
+        /* On ne compte que les vraies pages publiques vues par de vrais visiteurs */
+        if (is_admin() || wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST)) return;
+        if (is_robots() || is_feed() || is_trackback() || is_preview() || is_404()) return;
+        if (is_user_logged_in() && current_user_can('edit_posts')) return; // ne pas compter l'agence / les rédacteurs
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        if ($ua === '' || preg_match('~bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest|monitor|preview|headless|lighthouse|pagespeed~i', $ua)) return;
+        self::ensure_hits_table();
+        global $wpdb;
+        $ip     = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
+        $ip     = trim(explode(',', $ip)[0]);
+        $path   = strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+        $ref    = $_SERVER['HTTP_REFERER'] ?? '';
+        $utm    = isset($_GET['utm_source']) ? sanitize_text_field(wp_unslash($_GET['utm_source'])) : '';
+        $host   = strtolower(parse_url(home_url('/'), PHP_URL_HOST) ?: '');
+        $host   = preg_replace('~^www\.~', '', $host);
+        $country = strtoupper(substr($_SERVER['HTTP_CF_IPCOUNTRY'] ?? ($_SERVER['HTTP_X_COUNTRY_CODE'] ?? ''), 0, 2));
+        if ($country === 'XX' || $country === 'T1') $country = '';
+        $wpdb->insert(self::hits_table(), [
+            'ts'      => current_time('mysql'),
+            'day'     => current_time('Y-m-d'),
+            'path'    => substr($path, 0, 190),
+            'source'  => self::classify_source($ref, $utm, $host),
+            'country' => $country,
+            'device'  => wp_is_mobile() ? 'mobile' : 'desktop',
+            'vid'     => md5($ip . '|' . $ua . '|' . current_time('Y-m-d') . '|' . (defined('NONCE_SALT') ? NONCE_SALT : 'peg')),
+        ]);
+        /* Purge occasionnelle au-delà de 180 jours (1 chance sur 40, sans cron dédié) */
+        if (mt_rand(1, 40) === 1) {
+            $wpdb->query($wpdb->prepare("DELETE FROM " . self::hits_table() . " WHERE day < %s", date('Y-m-d', time() - 180 * 86400)));
+        }
     }
 
     private static function has_seo_plugin() {
@@ -299,6 +369,46 @@ class Pegasus {
                 'user'      => wp_get_current_user()->user_login,
                 'multisite' => is_multisite(),
             ],
+        ]);
+
+        /* ═══ AUDIENCE — visites/provenance/pays mesurées par Pegasus (sans cookie) ═══ */
+        register_rest_route(self::NS, '/audience', [
+            'methods' => 'GET',
+            'permission_callback' => self::guard('read'),
+            'callback' => function ($req) {
+                self::ensure_hits_table();
+                global $wpdb;
+                $t = self::hits_table();
+                $days = max(1, min(365, (int) ($req['days'] ?? 30)));
+                $since = date('Y-m-d', time() - ($days - 1) * 86400);
+                $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE day >= %s", $since));
+                $uniques = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT vid) FROM $t WHERE day >= %s", $since));
+                $byDay = $wpdb->get_results($wpdb->prepare("SELECT day, COUNT(*) hits, COUNT(DISTINCT vid) visitors FROM $t WHERE day >= %s GROUP BY day ORDER BY day", $since), ARRAY_A);
+                $grp = function ($field) use ($wpdb, $t, $since) {
+                    return $wpdb->get_results($wpdb->prepare("SELECT $field AS label, COUNT(*) AS value FROM $t WHERE day >= %s AND $field <> '' GROUP BY $field ORDER BY value DESC LIMIT 8", $since), ARRAY_A);
+                };
+                return [
+                    'ok' => true, 'days' => $days, 'source' => 'pegasus',
+                    'total' => $total, 'uniques' => $uniques,
+                    'byDay' => array_map(fn($r) => ['date' => $r['day'], 'hits' => (int)$r['hits'], 'visitors' => (int)$r['visitors']], $byDay ?: []),
+                    'sources'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('source') ?: []),
+                    'countries' => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('country') ?: []),
+                    'pages'     => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('path') ?: []),
+                    'devices'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('device') ?: []),
+                ];
+            },
+        ]);
+
+        /* Réinitialiser la mesure d'audience (repartir de zéro) — admin uniquement */
+        register_rest_route(self::NS, '/audience/reset', [
+            'methods' => 'POST',
+            'permission_callback' => self::guard('manage_options'),
+            'callback' => function () {
+                self::ensure_hits_table();
+                global $wpdb;
+                $wpdb->query("TRUNCATE TABLE " . self::hits_table());
+                return ['ok' => true, 'reset' => true];
+            },
         ]);
 
         /* ═══ CONNEXION EN 1 CLIC — génère le mot de passe + le code de connexion ═══ */
