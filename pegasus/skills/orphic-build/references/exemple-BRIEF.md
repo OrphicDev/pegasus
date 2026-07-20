@@ -1,9 +1,9 @@
 <!-- FIXTURE : exemple réel de BRIEF.md généré par Olympus (pegBuildBrief, main.js)
      régénéré le 20/07/2026. Format enrichi : niveau du site, maquette par section
-     (« > explication », « > [animations] … », « bouton → Page » = la destination),
-     latitude IA ; sections Scène 3D/Assets apparaissent si remplies.
-     Si le format généré par Olympus change, régénérer ce fichier — le skill
-     orphic-build se cale sur ce contrat. -->
+     (« > contenu », « > [animations] a · b · c » = puces du vocabulaire motion Orphic
+     + précisions libres, « bouton → Page » = la destination), latitude IA ;
+     sections Scène 3D/Assets apparaissent si remplies. Si le format généré par
+     Olympus change, régénérer ce fichier — orphic-build se cale sur ce contrat. -->
 
 # Brief de construction — Emotions Arts
 
@@ -28,7 +28,7 @@ Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessou
 - Section « Twin sisters,one shared passion. »
 - Section « What we create » — bouton → Spectacles
   > Vitrine des trois métiers, une seule émotion.
-  > [animations] Fondu + montée au scroll ; dots qui pulsent au survol.
+  > [animations] Fondu à l'arrivée · Montée au scroll · Rideau qui s'ouvre en SVG
 - Section « film quote »
 - Section « Moments created to be lived » — bouton → Réalisations
 - Section « Let’s talk about your event » — bouton → Contact
