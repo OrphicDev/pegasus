@@ -2,7 +2,7 @@
 /*
 Plugin Name: Pegasus
 Description: Pont d'administration à distance pour Orphic Agency — inspection, contenus (dont Elementor JSON), médias et extensions, via l'API REST authentifiée par Application Password.
-Version: 0.8.0
+Version: 0.9.0
 Author: Orphic Agency
 Requires at least: 6.0
 Requires PHP: 7.4
@@ -52,7 +52,7 @@ if (file_exists(__DIR__ . '/config.php')) require_once __DIR__ . '/config.php';
 class Pegasus {
 
     const NS  = 'pegasus/v1';
-    const VER = '0.8.0';
+    const VER = '0.9.0';
     const MAX_ZIP = 52428800;  // 50 Mo
     const MAX_MEDIA = 67108864; // 64 Mo (base64 ; au-delà : upload par URL)
 
@@ -71,6 +71,10 @@ class Pegasus {
         add_action('wp_head', [__CLASS__, 'seo_fallback_head'], 1);
         /* Mesure d'audience « first-party » (sans cookie, RGPD) : une visite front = une ligne */
         add_action('template_redirect', [__CLASS__, 'track']);
+        /* Rapport quotidien : tic horaire, déclenche à 18 h (Paris). Tourne côté serveur
+           client, donc même app Olympus fermée. Le résultat est poussé dans Supabase. */
+        add_action('pegasus_report_tick', [__CLASS__, 'report_tick']);
+        if (!wp_next_scheduled('pegasus_report_tick')) wp_schedule_event(time() + 300, 'hourly', 'pegasus_report_tick');
     }
 
     /* ═══════════════════ AUDIENCE — mesure interne (sans cookie) ═══════════════════ */
@@ -114,7 +118,7 @@ class Pegasus {
         if (is_robots() || is_feed() || is_trackback() || is_preview() || is_404()) return;
         if (is_user_logged_in() && current_user_can('edit_posts')) return; // ne pas compter l'agence / les rédacteurs
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        if ($ua === '' || preg_match('~bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest|monitor|preview|headless|lighthouse|pagespeed~i', $ua)) return;
+        if ($ua === '' || preg_match('~bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest|monitor|preview|headless|lighthouse|pagespeed|wordpress|wp-~i', $ua)) return;
         self::ensure_hits_table();
         global $wpdb;
         $ip     = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
@@ -139,6 +143,155 @@ class Pegasus {
         if (mt_rand(1, 40) === 1) {
             $wpdb->query($wpdb->prepare("DELETE FROM " . self::hits_table() . " WHERE day < %s", date('Y-m-d', time() - 180 * 86400)));
         }
+    }
+    /* Agrégat d'audience réutilisable (route /audience ET rapport quotidien) */
+    public static function audience_data($days = 30) {
+        self::ensure_hits_table();
+        global $wpdb; $t = self::hits_table();
+        $days = max(1, min(365, (int) $days));
+        $since = date('Y-m-d', time() - ($days - 1) * 86400);
+        $total   = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE day >= %s", $since));
+        $uniques = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT vid) FROM $t WHERE day >= %s", $since));
+        $byDay = $wpdb->get_results($wpdb->prepare("SELECT day, COUNT(*) hits, COUNT(DISTINCT vid) visitors FROM $t WHERE day >= %s GROUP BY day ORDER BY day", $since), ARRAY_A);
+        $grp = function ($field) use ($wpdb, $t, $since) {
+            return $wpdb->get_results($wpdb->prepare("SELECT $field AS label, COUNT(*) AS value FROM $t WHERE day >= %s AND $field <> '' GROUP BY $field ORDER BY value DESC LIMIT 8", $since), ARRAY_A);
+        };
+        return [
+            'ok' => true, 'days' => $days, 'source' => 'pegasus',
+            'total' => $total, 'uniques' => $uniques,
+            'byDay' => array_map(fn($r) => ['date' => $r['day'], 'hits' => (int)$r['hits'], 'visitors' => (int)$r['visitors']], $byDay ?: []),
+            'sources'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('source') ?: []),
+            'countries' => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('country') ?: []),
+            'pages'     => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('path') ?: []),
+            'devices'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('device') ?: []),
+        ];
+    }
+
+    /* ═══════════════════ RAPPORT QUOTIDIEN (18 h Paris → Supabase) ═══════════════════
+       Le serveur du client calcule et pousse son propre rapport chaque jour — aucune
+       dépendance à l'app Olympus. Un rapport = SEO + Performance + Sécurité + Audience. */
+    public static function seo_report() {
+        $limit = 12;
+        $seo_plugin = 'aucun';
+        if (defined('WPSEO_VERSION'))         $seo_plugin = 'Yoast SEO';
+        elseif (defined('RANK_MATH_VERSION')) $seo_plugin = 'Rank Math';
+        elseif (defined('SEOPRESS_VERSION'))  $seo_plugin = 'SEOPress';
+        elseif (defined('AIOSEO_VERSION'))    $seo_plugin = 'All in One SEO';
+        $sitemap = false;
+        foreach (['/wp-sitemap.xml', '/sitemap_index.xml', '/sitemap.xml'] as $s) {
+            $h = wp_remote_head(home_url($s), ['timeout' => 8, 'sslverify' => false]);
+            if (!is_wp_error($h) && wp_remote_retrieve_response_code($h) === 200) { $sitemap = true; break; }
+        }
+        $rob = wp_remote_get(home_url('/robots.txt'), ['timeout' => 8, 'sslverify' => false]);
+        $robots = !is_wp_error($rob) && wp_remote_retrieve_response_code($rob) === 200;
+        $urls = [home_url('/')];
+        foreach (get_posts(['post_type' => 'page', 'post_status' => 'publish', 'numberposts' => $limit]) as $p) {
+            $u = get_permalink($p); if ($u && $u !== home_url('/')) $urls[] = $u;
+        }
+        $urls = array_slice(array_unique($urls), 0, $limit);
+        $pages = 0; $problem_pages = 0; $issues = 0;
+        foreach ($urls as $u) {
+            $res = wp_remote_get($u, ['timeout' => 12, 'sslverify' => false]);
+            if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) continue;
+            $pages++;
+            $doc = new DOMDocument(); libxml_use_internal_errors(true);
+            $doc->loadHTML('<?xml encoding="utf-8" ?>' . wp_remote_retrieve_body($res)); libxml_clear_errors();
+            $xp = new DOMXPath($doc);
+            $get = fn($q) => ($n = $xp->query($q)->item(0)) ? trim($n->nodeValue) : null;
+            $title = $get('//title'); $desc = $get('//meta[@name="description"]/@content');
+            $h1 = $xp->query('//h1')->length; $canon = $get('//link[@rel="canonical"]/@href');
+            $ogt = $get('//meta[@property="og:title"]/@content'); $ogi = $get('//meta[@property="og:image"]/@content');
+            $noalt = 0; foreach ($xp->query('//img') as $im) { if (!$im->getAttribute('alt')) $noalt++; }
+            $bad = 0;
+            if (!$desc) $bad++;
+            if ($h1 !== 1) $bad++;
+            if (!$canon) $bad++;
+            if (!$ogt || !$ogi) $bad++;
+            if ($noalt > 0) $bad++;
+            if ($title && mb_strlen($title) > 62) $bad++;
+            if ($bad > 0) { $problem_pages++; $issues += $bad; }
+        }
+        if (!$sitemap) $issues++;
+        if (!$robots)  $issues++;
+        $score = $pages ? max(0, min(100, (int) round(100 - ($problem_pages / $pages) * 25))) : 0;
+        return ['score' => $score, 'pages' => $pages, 'problemes' => $issues, 'problem_pages' => $problem_pages, 'sitemap' => $sitemap, 'robots' => $robots, 'plugin_seo' => $seo_plugin];
+    }
+
+    public static function secu_report() {
+        if (!function_exists('get_plugins')) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        $all = get_plugins(); $active = (array) get_option('active_plugins', []);
+        $inactive = max(0, count($all) - count($active));
+        $checks = [
+            ['label' => 'HTTPS',                          'ok' => strpos(home_url('/'), 'https://') === 0],
+            ['label' => 'Débogage désactivé',             'ok' => !(defined('WP_DEBUG') && WP_DEBUG)],
+            ['label' => 'Éditeur de fichiers verrouillé', 'ok' => defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT],
+            ['label' => 'PHP à jour (≥ 8.1)',             'ok' => version_compare(PHP_VERSION, '8.1', '>=')],
+            ['label' => 'Aucune extension inactive',      'ok' => $inactive === 0],
+        ];
+        $ok = count(array_filter($checks, fn($c) => $c['ok'])); $total = count($checks);
+        return ['score' => (int) round($ok / $total * 100), 'ok' => $ok, 'bad' => $total - $ok, 'total' => $total, 'checks' => $checks];
+    }
+
+    public static function perf_report() {
+        $url = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?strategy=mobile&category=performance&url=' . rawurlencode(home_url('/'));
+        $res = wp_remote_get($url, ['timeout' => 30]);
+        if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) return null;
+        $j = json_decode(wp_remote_retrieve_body($res), true);
+        $score = $j['lighthouseResult']['categories']['performance']['score'] ?? null;
+        if ($score === null) return null;
+        $aud = $j['lighthouseResult']['audits'] ?? [];
+        return [
+            'score'    => (int) round($score * 100),
+            'lcp'      => isset($aud['largest-contentful-paint']['numericValue']) ? (int) round($aud['largest-contentful-paint']['numericValue']) : null,
+            'cls'      => isset($aud['cumulative-layout-shift']['numericValue']) ? round($aud['cumulative-layout-shift']['numericValue'], 3) : null,
+            'strategy' => 'mobile',
+        ];
+    }
+
+    public static function build_report($day) {
+        return [
+            'site_url' => home_url('/'),
+            'day'      => $day,
+            'seo'      => self::seo_report(),
+            'perf'     => self::perf_report(),
+            'secu'     => self::secu_report(),
+            'audience' => self::audience_data(30),
+        ];
+    }
+
+    /* Pousse le rapport du jour dans Supabase (clé publishable, table append-only). */
+    public static function push_report($day, $force = false) {
+        if (!defined('PEGASUS_SUPABASE_URL') || !defined('PEGASUS_SUPABASE_KEY')) return ['ok' => false, 'error' => 'Supabase non configuré dans ce plugin.'];
+        if (!$force && get_option('pegasus_report_day') === $day) return ['ok' => true, 'skipped' => true, 'day' => $day];
+        $report = self::build_report($day);
+        $res = wp_remote_post(PEGASUS_SUPABASE_URL . '/rest/v1/reports', [
+            'timeout' => 25,
+            'headers' => [
+                'apikey'        => PEGASUS_SUPABASE_KEY,
+                'Authorization' => 'Bearer ' . PEGASUS_SUPABASE_KEY,
+                'Content-Type'  => 'application/json',
+                'Prefer'        => 'return=minimal',
+            ],
+            'body' => wp_json_encode($report),
+        ]);
+        if (is_wp_error($res)) return ['ok' => false, 'error' => $res->get_error_message()];
+        $code = wp_remote_retrieve_response_code($res);
+        if ($code >= 200 && $code < 300) {
+            update_option('pegasus_report_day', $day, false);
+            self::log('daily_report', ['day' => $day, 'seo' => $report['seo']['score'] ?? null, 'secu' => $report['secu']['score'] ?? null]);
+            return ['ok' => true, 'pushed' => true, 'day' => $day, 'report' => $report];
+        }
+        return ['ok' => false, 'error' => 'Supabase ' . $code . ' : ' . substr(wp_remote_retrieve_body($res), 0, 200), 'report' => $report];
+    }
+
+    /* Tic horaire : à partir de 18 h (Europe/Paris), génère le rapport du jour une seule fois. */
+    public static function report_tick() {
+        try { $now = new DateTime('now', new DateTimeZone('Europe/Paris')); }
+        catch (Exception $e) { return; }
+        if ((int) $now->format('H') < 18) return;
+        $day = $now->format('Y-m-d');
+        if (get_option('pegasus_report_day') === $day) return;
+        self::push_report($day, false);
     }
 
     private static function has_seo_plugin() {
@@ -376,26 +529,18 @@ class Pegasus {
             'methods' => 'GET',
             'permission_callback' => self::guard('read'),
             'callback' => function ($req) {
-                self::ensure_hits_table();
-                global $wpdb;
-                $t = self::hits_table();
-                $days = max(1, min(365, (int) ($req['days'] ?? 30)));
-                $since = date('Y-m-d', time() - ($days - 1) * 86400);
-                $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE day >= %s", $since));
-                $uniques = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT vid) FROM $t WHERE day >= %s", $since));
-                $byDay = $wpdb->get_results($wpdb->prepare("SELECT day, COUNT(*) hits, COUNT(DISTINCT vid) visitors FROM $t WHERE day >= %s GROUP BY day ORDER BY day", $since), ARRAY_A);
-                $grp = function ($field) use ($wpdb, $t, $since) {
-                    return $wpdb->get_results($wpdb->prepare("SELECT $field AS label, COUNT(*) AS value FROM $t WHERE day >= %s AND $field <> '' GROUP BY $field ORDER BY value DESC LIMIT 8", $since), ARRAY_A);
-                };
-                return [
-                    'ok' => true, 'days' => $days, 'source' => 'pegasus',
-                    'total' => $total, 'uniques' => $uniques,
-                    'byDay' => array_map(fn($r) => ['date' => $r['day'], 'hits' => (int)$r['hits'], 'visitors' => (int)$r['visitors']], $byDay ?: []),
-                    'sources'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('source') ?: []),
-                    'countries' => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('country') ?: []),
-                    'pages'     => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('path') ?: []),
-                    'devices'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('device') ?: []),
-                ];
+                return self::audience_data((int) ($req['days'] ?? 30));
+            },
+        ]);
+
+        /* Génère le rapport du jour immédiatement (test / bouton « générer maintenant ») */
+        register_rest_route(self::NS, '/reports/run', [
+            'methods' => 'POST',
+            'permission_callback' => self::guard('manage_options'),
+            'callback' => function () {
+                try { $day = (new DateTime('now', new DateTimeZone('Europe/Paris')))->format('Y-m-d'); }
+                catch (Exception $e) { $day = date('Y-m-d'); }
+                return self::push_report($day, true);
             },
         ]);
 
