@@ -127,8 +127,12 @@ Flux : **proposer (candidat) → valider (humain) → vivant pour toute l'agence
 - `orphic-reporting` (agent) + `/pegasus:rapport` — rapport client vulgarisé,
   prêt à envoyer, zéro donnée inventée, recommandations d'évolution N1-N4.
 
-Skills à dériver après le projet pilote : `orphic-motion` (lié à la veille),
+Skills à dériver après pilote : `orphic-motion` (lié à la veille),
 `orphic-3d-webgl`, `orphic-perf-seo`, `orphic-monitoring-seo` (surveillance
 SEO continue — distincte de l'agent monitoring, qui fait l'état des lieux).
-Méthode convenue : un projet client **pilote** avec le skill racine, puis
-dérivation depuis les apprentissages.
+
+**Décision pilote (Sacha, 20/07/2026)** : Emotions Arts sert de pilote pour
+les apprentissages **N2 uniquement** (c'est un site N2) — recettes vitrine,
+clair-conversion, motion sobre, perf/SEO à ce palier. Les dérivations qui
+exigent du N3-N4 (`orphic-motion` avancé, `orphic-3d-webgl`) attendent un
+pilote de palier supérieur.
