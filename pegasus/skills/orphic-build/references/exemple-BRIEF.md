@@ -1,6 +1,7 @@
 <!-- FIXTURE : exemple réel de BRIEF.md généré par Olympus (pegBuildBrief, main.js)
-     régénéré le 20/07/2026 (format enrichi : niveau du site, maquette « > … » par
-     page/section, latitude IA ; sections Scène 3D/Assets apparaissent si remplies).
+     régénéré le 20/07/2026. Format enrichi : niveau du site, maquette par section
+     (« > explication », « > [animations] … », « bouton → Page » = la destination),
+     latitude IA ; sections Scène 3D/Assets apparaissent si remplies.
      Si le format généré par Olympus change, régénérer ce fichier — le skill
      orphic-build se cale sur ce contrat. -->
 
@@ -26,7 +27,8 @@ Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessou
 > La home doit émouvoir en 5 secondes : deux sœurs jumelles, un métier du spectacle.
 - Section « Twin sisters,one shared passion. »
 - Section « What we create » — bouton → Spectacles
-  > Ce que nous créons : trois métiers, une seule émotion.
+  > Vitrine des trois métiers, une seule émotion.
+  > [animations] Fondu + montée au scroll ; dots qui pulsent au survol.
 - Section « film quote »
 - Section « Moments created to be lived » — bouton → Réalisations
 - Section « Let’s talk about your event » — bouton → Contact
