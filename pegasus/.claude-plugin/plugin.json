@@ -1,8 +1,11 @@
 {
   "name": "pegasus",
-  "description": "Gérer les sites WordPress des clients Orphic depuis Claude — contenus, thèmes, plugins, SEO, médias, multilingue. Sans FTP. Inclut le skill orphic-web-design (constitution design de l'agence) et les agents orphic-critique / orphic-optimizer.",
-  "version": "0.4.0",
-  "author": { "name": "Orphic Agency", "url": "https://orphic-agency.com" },
+  "description": "Gérer les sites WordPress des clients Orphic depuis Claude — contenus, thèmes, plugins, SEO, médias, multilingue. Sans FTP. Inclut les skills orphic-web-design (constitution design) et orphic-build (du wireframe Olympus au site local), et les agents orphic-critique / orphic-optimizer / orphic-monitoring / orphic-reporting.",
+  "version": "0.5.0",
+  "author": {
+    "name": "Orphic Agency",
+    "url": "https://orphic-agency.com"
+  },
   "homepage": "https://orphic-agency.com",
   "userConfig": {
     "team_key": {

@@ -118,9 +118,17 @@ Flux : **proposer (candidat) → valider (humain) → vivant pour toute l'agence
 
 ### Feuille de route skills & agents
 
+**Fait (v0.5.0)** :
+- `orphic-build` (skill) — construire/mettre à jour un site LOCAL depuis un
+  BRIEF.md de wireframe généré par Olympus (fixture du contrat de format dans
+  `skills/orphic-build/references/exemple-BRIEF.md`).
+- `orphic-monitoring` (agent) + `/pegasus:monitoring` — état du parc, lecture
+  seule, un rapport (tableau + 🔴 à traiter + recommandations).
+- `orphic-reporting` (agent) + `/pegasus:rapport` — rapport client vulgarisé,
+  prêt à envoyer, zéro donnée inventée, recommandations d'évolution N1-N4.
+
 Skills à dériver après le projet pilote : `orphic-motion` (lié à la veille),
-`orphic-3d-webgl`, `orphic-perf-seo`, `orphic-monitoring-seo`. Agents
-prioritaires ensuite : **monitoring** du parc (uptime, perf, CVE, SSL, liens
-morts, SEO) et **reporting** (SEO / campagnes / risques) — 1 seul appel LLM,
-~90 % code. Méthode convenue : un projet client **pilote** avec le skill
-racine, puis dérivation depuis les apprentissages.
+`orphic-3d-webgl`, `orphic-perf-seo`, `orphic-monitoring-seo` (surveillance
+SEO continue — distincte de l'agent monitoring, qui fait l'état des lieux).
+Méthode convenue : un projet client **pilote** avec le skill racine, puis
+dérivation depuis les apprentissages.
