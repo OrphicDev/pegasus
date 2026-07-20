@@ -1,12 +1,15 @@
 <!-- FIXTURE : exemple réel de BRIEF.md généré par Olympus (pegBuildBrief, main.js)
-     le 20/07/2026 sur Emotions Arts. Si le format généré par Olympus change,
-     regénérer ce fichier — le skill orphic-build se cale sur ce contrat. -->
+     régénéré le 20/07/2026 (format enrichi : niveau du site, maquette « > … » par
+     page/section, latitude IA ; sections Scène 3D/Assets apparaissent si remplies).
+     Si le format généré par Olympus change, régénérer ce fichier — le skill
+     orphic-build se cale sur ce contrat. -->
 
 # Brief de construction — Emotions Arts
 
-Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessous en local, avec la charte graphique indiquée. Chaque « section » est un bloc de la page ; une section « → Page » est un bouton/lien menant à cette page.
+Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessous en local, avec la charte graphique indiquée. Chaque « section » est un bloc de la page ; une section « → Page » est un bouton/lien menant à cette page. Les lignes « > … » sont le texte/contexte voulu par le dev (la maquette) : c'est la matière, reprends-la.
 
 ## Charte graphique
+- **Niveau du site** : N2 · Luxe
 - **Couleurs** : noir #120a0d · noir 2 #1b0f13 · bordeaux #7a1b28 · bordeaux hot #a63040 · rose #e8afaf · blanc #f7f2ee
 - **Typographies** : Cormorant Garamond (Titres) · Jost (Texte)
 - **Logo** : https://emotions-arts.com/wp-content/themes/emotionsarts/assets/img/logo.svg
@@ -20,8 +23,10 @@ Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessou
 - About us → Qui sommes-nous
 
 ### Emotions Arts (accueil) — niveau 1
+> La home doit émouvoir en 5 secondes : deux sœurs jumelles, un métier du spectacle.
 - Section « Twin sisters,one shared passion. »
 - Section « What we create » — bouton → Spectacles
+  > Ce que nous créons : trois métiers, une seule émotion.
 - Section « film quote »
 - Section « Moments created to be lived » — bouton → Réalisations
 - Section « Let’s talk about your event » — bouton → Contact
@@ -89,4 +94,8 @@ Généré par Pegasus depuis le wireframe validé. Construis les pages ci-dessou
 
 ### Footer
 - Legal notice → Mentions légales
+
+## Latitude laissée à l'IA
+- Étapes explicitement laissées à ta discrétion : maquette. Décide en suivant la doctrine orphic-web-design et le contexte du site.
+- Étapes passées sans être renseignées : references. Fais au mieux — le dev sait que le résultat peut s'éloigner de ses attentes sur ces points.
 
