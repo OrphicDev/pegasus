@@ -2,7 +2,7 @@
 /*
 Plugin Name: Pegasus
 Description: Pont d'administration à distance pour Orphic Agency — inspection, contenus (dont Elementor JSON), médias et extensions, via l'API REST authentifiée par Application Password.
-Version: 0.9.0
+Version: 0.9.1
 Author: Orphic Agency
 Requires at least: 6.0
 Requires PHP: 7.4
@@ -52,7 +52,7 @@ if (file_exists(__DIR__ . '/config.php')) require_once __DIR__ . '/config.php';
 class Pegasus {
 
     const NS  = 'pegasus/v1';
-    const VER = '0.9.0';
+    const VER = '0.9.1';
     const MAX_ZIP = 52428800;  // 50 Mo
     const MAX_MEDIA = 67108864; // 64 Mo (base64 ; au-delà : upload par URL)
 
@@ -156,6 +156,8 @@ class Pegasus {
         $grp = function ($field) use ($wpdb, $t, $since) {
             return $wpdb->get_results($wpdb->prepare("SELECT $field AS label, COUNT(*) AS value FROM $t WHERE day >= %s AND $field <> '' GROUP BY $field ORDER BY value DESC LIMIT 8", $since), ARRAY_A);
         };
+        // Répartition horaire × jour de la semaine (WEEKDAY : lundi=0 … dimanche=6)
+        $hm = $wpdb->get_results($wpdb->prepare("SELECT WEEKDAY(ts) wd, HOUR(ts) hr, COUNT(*) c FROM $t WHERE day >= %s GROUP BY wd, hr", $since), ARRAY_A);
         return [
             'ok' => true, 'days' => $days, 'source' => 'pegasus',
             'total' => $total, 'uniques' => $uniques,
@@ -164,6 +166,7 @@ class Pegasus {
             'countries' => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('country') ?: []),
             'pages'     => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('path') ?: []),
             'devices'   => array_map(fn($r) => ['label' => $r['label'], 'value' => (int)$r['value']], $grp('device') ?: []),
+            'heatmap'   => array_map(fn($r) => ['wd' => (int)$r['wd'], 'hr' => (int)$r['hr'], 'c' => (int)$r['c']], $hm ?: []),
         ];
     }
 
