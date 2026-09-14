@@ -2,7 +2,7 @@
 /*
 Plugin Name: Pegasus
 Description: Pont d'administration à distance pour Orphic Agency — inspection, contenus (dont Elementor JSON), médias et extensions, via l'API REST authentifiée par Application Password.
-Version: 0.9.1
+Version: 0.10.0
 Author: Orphic Agency
 Requires at least: 6.0
 Requires PHP: 7.4
@@ -52,7 +52,7 @@ if (file_exists(__DIR__ . '/config.php')) require_once __DIR__ . '/config.php';
 class Pegasus {
 
     const NS  = 'pegasus/v1';
-    const VER = '0.9.1';
+    const VER = '0.10.0';
     const MAX_ZIP = 52428800;  // 50 Mo
     const MAX_MEDIA = 67108864; // 64 Mo (base64 ; au-delà : upload par URL)
 
@@ -413,6 +413,8 @@ class Pegasus {
     }
     public static function admin_page() {
         $log      = get_option('pegasus_log', []);
+        $admin    = get_option('pegasus_administration', []);   // { url, jeton, site_id, fiche, connecte_le } — le portail Orphic Administration
+        if (!is_array($admin)) $admin = [];
         $manifest = defined('PEGASUS_UPDATE_MANIFEST');
         $rest     = esc_url(rest_url(self::NS));
         $profil   = esc_url(admin_url('profile.php#application-passwords-section'));
@@ -436,6 +438,21 @@ class Pegasus {
               </p>
               <div id="pegasus-ok" style="display:none;margin-top:10px;color:#2e7d32;font-weight:600">✅ Ce site est connecté. Orphic peut désormais le gérer depuis Claude.</div>
               <div id="pegasus-err" style="display:none;color:#a63040;margin-top:10px"></div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #e2d6d0;border-radius:10px;padding:20px">
+              <h2 style="margin-top:0;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:#7A1B28">Orphic Administration</h2>
+              <?php if (!empty($admin['site_id'])) : ?>
+                <p><strong>Statut :</strong> <span style="color:#2e7d32">● Connecté</span> <span style="color:#8a7076;font-size:12px">— le <?php echo esc_html(substr((string) ($admin['connecte_le'] ?? ''), 0, 10)); ?></span></p>
+                <p style="color:#4a363b;font-size:13px">Ce site est un projet d'Orphic Administration<?php if (!empty($admin['fiche'])) : ?> : <a href="<?php echo esc_url($admin['fiche']); ?>" target="_blank" rel="noopener">sa fiche ↗</a><?php endif; ?>. Reconnecter renouvelle le mot de passe d'application du portail.</p>
+              <?php else : ?>
+                <p style="color:#4a363b;font-size:13px">Connecte ce site au portail du studio : il y apparaîtra sous le nom de ce WordPress — le nom et le client se règlent ensuite sur sa fiche.</p>
+              <?php endif; ?>
+              <p style="margin:10px 0 4px"><label for="pegasus-admin-url" style="font-size:12px;color:#8a7076">Adresse du portail</label><br><input id="pegasus-admin-url" type="url" class="regular-text" style="width:100%" value="<?php echo esc_attr($admin['url'] ?? 'https://orphic-administration.pages.dev'); ?>" placeholder="https://orphic-administration.pages.dev"></p>
+              <p style="margin:6px 0 4px"><label for="pegasus-admin-jeton" style="font-size:12px;color:#8a7076">Jeton d'enrôlement <span style="color:#b8a0a6">(Tools → Pegasus, dans le portail)</span></label><br><input id="pegasus-admin-jeton" type="password" class="regular-text" style="width:100%" value="" placeholder="<?php echo !empty($admin['jeton']) ? 'déjà enregistré — laisser vide pour le garder' : 'orphic-enrol-…'; ?>" autocomplete="off"></p>
+              <p style="margin-top:12px"><button id="pegasus-enrol" class="button button-primary" style="background:#7A1B28;border-color:#7A1B28"><?php echo !empty($admin['site_id']) ? '↻ Reconnecter ce site à Orphic Administration' : '🔗 Connecter ce site à Orphic Administration'; ?></button></p>
+              <div id="pegasus-enrol-ok" style="display:none;margin-top:10px;color:#2e7d32;font-weight:600"></div>
+              <div id="pegasus-enrol-err" style="display:none;color:#a63040;margin-top:10px"></div>
             </div>
 
             <div style="background:#fff;border:1px solid #e2d6d0;border-radius:10px;padding:20px">
@@ -491,6 +508,30 @@ class Pegasus {
                 }
               })
               .catch(function(err){ btn.disabled=false; btn.textContent='🔗 Connecter ce site à Claude'; var e=document.getElementById('pegasus-err'); e.style.display='block'; e.textContent='Erreur réseau : '+err.message; });
+          });
+        })();
+        (function(){
+          var btn=document.getElementById('pegasus-enrol');
+          if(!btn) return;
+          var nonce='<?php echo esc_js(wp_create_nonce('wp_rest')); ?>';
+          var endpoint='<?php echo esc_js(rest_url(self::NS.'/enrol')); ?>';
+          var texte=btn.textContent;
+          btn.addEventListener('click',function(){
+            btn.disabled=true; btn.textContent='Connexion au portail…';
+            var ok=document.getElementById('pegasus-enrol-ok'), err=document.getElementById('pegasus-enrol-err');
+            ok.style.display='none'; err.style.display='none';
+            fetch(endpoint,{method:'POST',headers:{'X-WP-Nonce':nonce,'Content-Type':'application/json'},body:JSON.stringify({url:document.getElementById('pegasus-admin-url').value,jeton:document.getElementById('pegasus-admin-jeton').value})})
+              .then(function(r){return r.json();})
+              .then(function(d){
+                if(d.ok){
+                  btn.disabled=false; btn.textContent='↻ Reconnecter ce site à Orphic Administration';
+                  ok.style.display='block'; ok.innerHTML='✅ Connecté. '+(d.nouveau?'Le site est créé dans le portail sous le nom « '+d.site+' » — sans client pour l\'instant.':'Le portail connaissait déjà ce site : accès renouvelé.')+(d.fiche?' <a href="'+d.fiche+'" target="_blank" rel="noopener">Sa fiche ↗</a>':'');
+                }else{
+                  btn.disabled=false; btn.textContent=texte;
+                  err.style.display='block'; err.textContent='Erreur : '+(d.message||'inconnue');
+                }
+              })
+              .catch(function(e){ btn.disabled=false; btn.textContent=texte; err.style.display='block'; err.textContent='Erreur réseau : '+e.message; });
           });
         })();
         </script>
@@ -629,6 +670,73 @@ class Pegasus {
                     'app_pw_available'    => function_exists('wp_is_application_passwords_available') ? wp_is_application_passwords_available() : null,
                     'all_headers'         => $hdrs,
                 ];
+            },
+        ]);
+
+        /* ═══ ENRÔLEMENT — ce site se connecte lui-même à Orphic Administration ═══
+           Sacha, 14/09/2026 : « Si le site vient de WordPress, ça se fera automatiquement avec
+           Pegasus, et ça lui donne en nom de projet le nom du WordPress. » On crée un mot de passe
+           d'application dédié au portail et on le lui remet, avec le jeton d'enrôlement que le
+           membre a collé ici ; le portail vérifie l'accès chez nous avant d'enregistrer. */
+        register_rest_route(self::NS, '/enrol', [
+            'methods' => 'POST',
+            'permission_callback' => self::guard('manage_options'),
+            'callback' => function (WP_REST_Request $req) {
+                if (!class_exists('WP_Application_Passwords') || !wp_is_application_passwords_available()) {
+                    return new WP_Error('pegasus_noapp', 'Les mots de passe d\'application sont indisponibles (le site doit être en HTTPS).', ['status' => 501]);
+                }
+                $admin = get_option('pegasus_administration', []);
+                if (!is_array($admin)) $admin = [];
+                $url   = rtrim(trim((string) ($req->get_param('url') ?: ($admin['url'] ?? ''))), '/');
+                $jeton = trim((string) ($req->get_param('jeton') ?: ''));
+                if ($jeton === '') $jeton = (string) ($admin['jeton'] ?? '');
+                if (!preg_match('#^https://[^\s/]+#', $url)) return new WP_Error('pegasus_url', 'L\'adresse du portail doit commencer par https://.', ['status' => 400]);
+                if ($jeton === '') return new WP_Error('pegasus_jeton', 'Le jeton d\'enrôlement manque : Tools → Pegasus, dans le portail.', ['status' => 400]);
+
+                $user = wp_get_current_user();
+                /* Un seul mot de passe pour le portail : les anciens du même nom sont révoqués. */
+                foreach (WP_Application_Passwords::get_user_application_passwords($user->ID) as $item) {
+                    if (isset($item['name']) && $item['name'] === 'Orphic Administration') {
+                        WP_Application_Passwords::delete_application_password($user->ID, $item['uuid']);
+                    }
+                }
+                $created = WP_Application_Passwords::create_new_application_password($user->ID, ['name' => 'Orphic Administration']);
+                if (is_wp_error($created)) return $created;
+                $password = $created[0];
+
+                $res = wp_remote_post($url . '/api/wordpress/enroler', [
+                    'timeout' => 45,
+                    'headers' => ['Authorization' => 'Bearer ' . $jeton, 'Content-Type' => 'application/json', 'Accept' => 'application/json'],
+                    'body' => wp_json_encode([
+                        'site_url'     => home_url('/'),
+                        'nom'          => get_bloginfo('name'),
+                        'utilisateur'  => $user->user_login,
+                        'mot_de_passe' => $password,
+                        'wp'           => get_bloginfo('version'),
+                        'pegasus'      => self::VER,
+                    ]),
+                ]);
+                if (is_wp_error($res)) {
+                    WP_Application_Passwords::delete_application_password($user->ID, $created[1]['uuid']);
+                    return new WP_Error('pegasus_portail', 'Le portail est injoignable : ' . $res->get_error_message(), ['status' => 502]);
+                }
+                $code = wp_remote_retrieve_response_code($res);
+                $body = json_decode((string) wp_remote_retrieve_body($res), true);
+                if ($code < 200 || $code >= 300 || empty($body['ok'])) {
+                    /* Un enrôlement refusé ne laisse pas traîner un mot de passe inutile. */
+                    WP_Application_Passwords::delete_application_password($user->ID, $created[1]['uuid']);
+                    $motif = is_array($body) && !empty($body['erreur']) ? $body['erreur'] : ('HTTP ' . $code);
+                    return new WP_Error('pegasus_refus', 'Le portail a refusé l\'enrôlement : ' . $motif, ['status' => $code === 401 ? 401 : 502]);
+                }
+                update_option('pegasus_administration', [
+                    'url'         => $url,
+                    'jeton'       => $jeton,
+                    'site_id'     => $body['site']['id'] ?? null,
+                    'fiche'       => $body['fiche'] ?? null,
+                    'connecte_le' => gmdate('c'),
+                ], false);
+                self::log('enrol_administration', ['portail' => $url, 'site' => $body['site']['id'] ?? null, 'nouveau' => !empty($body['nouveau'])]);
+                return ['ok' => true, 'site' => $body['site']['nom'] ?? get_bloginfo('name'), 'nouveau' => !empty($body['nouveau']), 'fiche' => $body['fiche'] ?? null];
             },
         ]);
 
